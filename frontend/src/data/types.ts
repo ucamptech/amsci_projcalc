@@ -1,21 +1,5 @@
-// src/types.ts
-export type ID = number | string;
-
-export interface Activity {
-  id: number; // from API
-  wbsId: string; // "2.1", "2.2", ...
-  activity: string; // label
-}
-
-export interface Resource {
-  id: number;
-  name: string;
-  title: string;
-  cost: number;
-}
-
 export interface ProjectInit {
-  id: number;
+  id?: number;
   name: string;
   sponsor: string;
   manager: string;
@@ -24,13 +8,13 @@ export interface ProjectInit {
   businessNeed: string;
   projectGoal: string;
   measurableObjectives: string;
-  inScope: string;
+  deliverables: string;
   outOfScope: string;
 }
 
 export interface WbsRow {
   id: string;
-  activityId: number;
+  activityId: string | number | "";
   wbsId: string;
   activity: string;
   fxResourceId: string | number | "";
@@ -40,18 +24,22 @@ export interface WbsRow {
 }
 
 export interface EstimatePayload {
+  id?: string | number;
   resourceId: number;
   activityId: number;
   mandays: number;
+  activity?: string;
 }
 
-export interface ProjectCreatePayload {
+export interface ProjectPayload {
+  id?: string | number;
   name: string;
   sponsor: string;
   manager: string;
   businessNeed: string;
   projectGoal: string;
   measurableObjectives: string;
+  deliverables: string;
   outOfScope: string;
   estimates: EstimatePayload[];
 }

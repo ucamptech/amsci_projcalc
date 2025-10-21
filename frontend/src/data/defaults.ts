@@ -1,4 +1,18 @@
-import type { Activity, ProjectInit, Resource } from "./types";
+import type { Activity, Resource } from "@/api/types";
+
+import type { ProjectInit } from "./types";
+
+export const EMPTY_PROJECT: ProjectInit = {
+  name: "",
+  sponsor: "",
+  manager: "",
+  version: "v1.0",
+  businessNeed: "",
+  projectGoal: "",
+  measurableObjectives: "",
+  deliverables: "",
+  outOfScope: "",
+};
 
 export const DEFAULT_ACTIVITIES: Activity[] = [
   { id: 1, wbsId: "2.1", activity: "Requirements Gathering" },
@@ -15,12 +29,16 @@ export const DEFAULT_RESOURCES: Resource[] = [
     name: "Test Resource 1",
     title: "Functional Consultant",
     cost: 100.0,
+    resourceTypeId: 1,
+    resourceType: { name: "Functional" },
   },
   {
     id: 2,
     name: "Test Resource 2",
     title: "Technical Consultant",
     cost: 100.0,
+    resourceTypeId: 2,
+    resourceType: { name: "Technical" },
   },
 ];
 
@@ -35,7 +53,7 @@ export const DEFAULT_PROJECTS: ProjectInit[] = [
     businessNeed: "",
     projectGoal: "",
     measurableObjectives: "",
-    inScope: "",
+    deliverables: "",
     outOfScope: "",
   },
   {
@@ -48,7 +66,7 @@ export const DEFAULT_PROJECTS: ProjectInit[] = [
     businessNeed: "",
     projectGoal: "",
     measurableObjectives: "",
-    inScope: "",
+    deliverables: "",
     outOfScope: "",
   },
   {
@@ -61,7 +79,7 @@ export const DEFAULT_PROJECTS: ProjectInit[] = [
     businessNeed: "",
     projectGoal: "",
     measurableObjectives: "",
-    inScope: "",
+    deliverables: "",
     outOfScope: "",
   },
 ];

@@ -93,7 +93,7 @@ export async function exportProjectCharterExcel({
     ],
     [
       "In-Scope Deliverables",
-      project.inScope ?? "",
+      project.deliverables ?? "",
       "Major, tangible outputs (e.g., Fully tested DM Tool; End-User Training Materials; Formal Data Migration Sign-off.)",
     ],
     [

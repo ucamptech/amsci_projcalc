@@ -1,6 +1,11 @@
+import type { Activity, Resource } from "@/api/types";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { DEFAULT_ACTIVITIES, DEFAULT_RESOURCES } from "@/data/defaults";
+import {
+  DEFAULT_ACTIVITIES,
+  DEFAULT_RESOURCES,
+  EMPTY_PROJECT,
+} from "@/data/defaults";
 import {
   Dialog,
   DialogContent,
@@ -8,48 +13,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type {
-  ProjectCreatePayload,
-  ProjectInit,
-  Resource,
-  WbsRow,
-} from "@/data/types";
+import type { ProjectInit, ProjectPayload, WbsRow } from "@/data/types";
 import { useEffect, useMemo, useState } from "react";
 
-import AuthorizationSection from "@/components/AuthorizationSection";
 import { Button } from "@/components/ui/button";
 import DashLayout from "@/layouts/DashLayout";
 import InitiationSection from "@/components/InitiationSection";
 import WBSSection from "@/components/WBSSection";
-import { api } from "@/utils/api";
+import { api } from "@/api/api";
 import { cryptoId } from "@/utils/number";
 import { exportProjectCharterExcel } from "@/utils/xlsxExport";
 import useLocalStorage from "@/hooks/useLocalStorage";
 
-// -------- CONSTANTS --------
-const EMPTY_PROJECT: ProjectInit = {
-  id: 0,
-  name: "",
-  sponsor: "",
-  manager: "",
-  version: "v1.0",
-  businessNeed: "",
-  projectGoal: "",
-  measurableObjectives: "",
-  inScope: "",
-  outOfScope: "",
-};
-
 type ModalState = { type: "error" | "success"; message: string };
 
 export default function ProjectsCreate() {
-  const [project, setProject] = useLocalStorage<ProjectInit>(
-    "pc_project",
-    EMPTY_PROJECT
-  );
+  const [project, setProject] = useState<ProjectInit>(EMPTY_PROJECT);
   const [signers] = useLocalStorage("pc_signers", []);
 
   const [wbsRows, setWbsRows] = useState<WbsRow[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -62,17 +45,22 @@ export default function ProjectsCreate() {
     async function retrieveFromAPI(): Promise<void> {
       setLoading(true);
       try {
-        const [activities, res] = await Promise.all([
+        const [activities, resources] = await Promise.all([
+          // api.login("test@example.com", "passw0rd123"),
           api.getActivities(),
           api.getResources(),
         ]);
         if (!mounted) return;
 
+        console.log("Activities:", activities);
+        console.log("Resources:", resources);
+        console.log("----");
+
         const rows: WbsRow[] = (activities ?? []).map((a) => ({
           id: cryptoId(),
-          activityId: a.id,
-          wbsId: a.wbsId,
-          activity: a.activity,
+          activityId: a.id || 0,
+          wbsId: a.wbsId || "",
+          activity: a.activity || "New Activity",
           level: 0,
           fxResourceId: "",
           fxMandays: 0,
@@ -81,14 +69,15 @@ export default function ProjectsCreate() {
         }));
 
         setWbsRows(rows);
-        setResources(res ?? []);
+        setActivities(activities);
+        setResources(resources ?? []);
       } catch (err) {
         // Use default data
         const rows: WbsRow[] = DEFAULT_ACTIVITIES.map((a) => ({
           id: cryptoId(),
-          activityId: a.id,
-          wbsId: a.wbsId,
-          activity: a.activity,
+          activityId: a.id || 0,
+          wbsId: a.wbsId || "",
+          activity: a.activity || "New Activity",
           level: 0,
           fxResourceId: "",
           fxMandays: 0,
@@ -99,14 +88,17 @@ export default function ProjectsCreate() {
         setWbsRows(rows);
         setResources(DEFAULT_RESOURCES);
 
-        const message = err instanceof Error ? err.message : "API unavailable.";
-        setModal({ type: "error", message: `API offline. (${message})` });
+        const message =
+          err instanceof Error ? err.message : "Server unavailable.";
+        setModal({ type: "error", message: `Server offline. (${message})` });
       } finally {
         setLoading(false);
       }
     }
 
+    // Call functions/voids
     void retrieveFromAPI();
+
     return () => {
       mounted = false;
     };
@@ -128,8 +120,8 @@ export default function ProjectsCreate() {
     exportProjectCharterExcel({ project, wbs: wbsRows, signers });
   }
 
-  function buildPayload(): ProjectCreatePayload {
-    const estimates: ProjectCreatePayload["estimates"] = [];
+  function buildPayload(): ProjectPayload {
+    const estimates: ProjectPayload["estimates"] = [];
     for (const r of wbsRows) {
       if (r.fxResourceId && Number(r.fxMandays) > 0) {
         estimates.push({
@@ -153,6 +145,7 @@ export default function ProjectsCreate() {
       businessNeed: project.businessNeed?.trim() || "",
       projectGoal: project.projectGoal?.trim() || "",
       measurableObjectives: project.measurableObjectives?.trim() || "",
+      deliverables: project.deliverables?.trim() || "",
       outOfScope: project.outOfScope?.trim() || "",
       estimates,
     };
@@ -162,6 +155,7 @@ export default function ProjectsCreate() {
     setSubmitBusy(true);
     try {
       const payload = buildPayload();
+      console.log("Payload: ", payload);
 
       console.log(payload);
 
@@ -199,9 +193,10 @@ export default function ProjectsCreate() {
             wbsRows={wbsRows}
             setWbsRows={setWbsRows}
             resources={resources}
+            activities={activities}
             lockActivity={false}
           />
-          <AuthorizationSection />
+          {/* <AuthorizationSection /> */}
 
           <div className="flex items-center justify-end mb-3 mt-4">
             <div className="flex gap-2">

@@ -1,9 +1,6 @@
-// src/components/WBSSection.tsx
-import * as React from "react";
-
+import type { Activity, Resource } from "@/api/types";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Resource, WbsRow } from "@/data/types";
 import {
   Select,
   SelectContent,
@@ -26,11 +23,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SectionTitle from "./SectionTitle";
+import type { WbsRow } from "@/data/types";
+import { useMemo } from "react";
 
 type Props = {
   wbsRows: WbsRow[];
   setWbsRows: React.Dispatch<React.SetStateAction<WbsRow[]>>;
   resources: Resource[];
+  activities: Activity[];
   lockActivity?: boolean;
 };
 
@@ -38,12 +38,13 @@ export default function WBSSection({
   wbsRows,
   setWbsRows,
   resources,
+  activities,
   lockActivity = true,
 }: Props) {
   const isSingleRow = wbsRows.length <= 1;
 
-  // ----- functions -----
-  const totals = React.useMemo(() => {
+  // ---------- derived states ----------
+  const totals = useMemo(() => {
     const fx = wbsRows.reduce((sum, r) => sum + (Number(r.fxMandays) || 0), 0);
     const abap = wbsRows.reduce(
       (sum, r) => sum + (Number(r.abapMandays) || 0),
@@ -52,6 +53,17 @@ export default function WBSSection({
     return { fx, abap };
   }, [wbsRows]);
 
+  const { fxResources, abapResources } = useMemo(() => {
+    const fxResources = resources.filter(
+      (r) => r.resourceType?.name.toLowerCase() === "functional"
+    );
+    const abapResources = resources.filter(
+      (r) => r.resourceType?.name.toLowerCase() === "technical"
+    );
+    return { fxResources, abapResources };
+  }, [resources]);
+
+  // ----- actions -----
   function updateRow(id: string, patch: Partial<WbsRow>) {
     setWbsRows((rows) =>
       rows.map((r) => (r.id === id ? { ...r, ...patch } : r))
@@ -63,21 +75,16 @@ export default function WBSSection({
       id: cryptoId(),
       activityId: 0,
       wbsId: "",
-      activity: "New Activity",
+      activity: "", // start empty, user will select from options
       fxResourceId: "",
       fxMandays: 0,
       abapResourceId: "",
       abapMandays: 0,
     };
-    setWbsRows((rows) => {
-      const next = [...rows, newRow];
-      return next;
-    });
+    setWbsRows((rows) => [...rows, newRow]);
   }
 
   function removeRow(id: string) {
-    // setWbsRows((rows) => rows.filter((r) => r.id !== id));
-    // Retain 1 row
     setWbsRows((rows) => {
       if (rows.length <= 1) return rows;
       return rows.filter((r) => r.id !== id);
@@ -97,6 +104,7 @@ export default function WBSSection({
     });
   }
 
+  // ---------- render ----------
   return (
     <section className="mt-6">
       <SectionTitle title="II. High-Level WBS Breakdown with Estimated Effort" />
@@ -115,12 +123,12 @@ export default function WBSSection({
         <CardContent className="p-0 sm:p-2 md:p-4">
           <div
             className="
-      relative w-full
-      overflow-x-auto overflow-y-auto
-      max-h-[50vh]
-      rounded-lg border border-border
-      scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent
-    "
+              relative w-full
+              overflow-x-auto overflow-y-auto
+              max-h-[60vh]
+              rounded-lg border border-border
+              scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent
+            "
           >
             <Table className="min-w-[768px] w-full text-sm align-middle border-collapse">
               <TableHeader className="sticky top-0 bg-background z-10 border-b">
@@ -152,12 +160,12 @@ export default function WBSSection({
               <TableBody>
                 {wbsRows.map((r, idx) => (
                   <TableRow key={r.id}>
-                    {/* --- WBS ID --- */}
+                    {/* --- WBS ID (auto-fills from activity) --- */}
                     <TableCell>
                       <Input
                         className="w-full"
                         value={r.wbsId}
-                        readOnly={lockActivity}
+                        readOnly={true}
                         maxLength={10}
                         onChange={(e) =>
                           !lockActivity &&
@@ -166,22 +174,54 @@ export default function WBSSection({
                       />
                     </TableCell>
 
-                    {/* --- Activity --- */}
-                    <TableCell>
-                      <Input
-                        className="w-full"
-                        value={r.activity}
-                        readOnly={lockActivity}
-                        maxLength={50}
-                        onChange={(e) =>
-                          !lockActivity &&
-                          updateRow(r.id, { activity: e.target.value })
-                        }
-                      />
+                    {/* --- Activity (Select) --- */}
+                    <TableCell className="overflow-hidden">
+                      <div className="grid gap-1">
+                        <Label className="sr-only">Activity</Label>
+                        <Select
+                          disabled={lockActivity}
+                          value={r.activityId ? String(r.activityId) : ""}
+                          onValueChange={(val) => {
+                            const opt = activities.find(
+                              (activity) => String(activity.id) === val
+                            );
+                            if (!opt) return;
+                            updateRow(r.id, {
+                              activityId: opt.id,
+                              activity: opt.activity,
+                              wbsId: opt.wbsId,
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="w-full max-w-full truncate">
+                            <SelectValue
+                              placeholder="Select activity"
+                              className="truncate"
+                            />
+                          </SelectTrigger>
+                          <SelectContent className="min-w-0">
+                            {activities.map((activity) => (
+                              <SelectItem
+                                key={activity.id}
+                                value={String(activity.id)}
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  <span className="font-medium">
+                                    {activity.activity}
+                                  </span>
+                                  {/* <span className="text-muted-foreground">
+                                    ({activity.wbsId})
+                                  </span> */}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </TableCell>
 
                     {/* --- FX Resource --- */}
-                    <TableCell>
+                    <TableCell className="overflow-hidden">
                       <div className="grid gap-1">
                         <Label className="sr-only">FX Resource</Label>
                         <Select
@@ -190,14 +230,14 @@ export default function WBSSection({
                             updateRow(r.id, { fxResourceId: val })
                           }
                         >
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger className="w-full max-w-full truncate">
                             <SelectValue
                               placeholder="Select FX"
                               className="truncate"
                             />
                           </SelectTrigger>
-                          <SelectContent>
-                            {resources.map((res) => (
+                          <SelectContent className="min-w-0">
+                            {fxResources.map((res) => (
                               <SelectItem key={res.id} value={String(res.id)}>
                                 <span className="block max-w-[360px] truncate">
                                   {res.name} — {res.title}
@@ -233,7 +273,7 @@ export default function WBSSection({
                     </TableCell>
 
                     {/* --- ABAP Resource --- */}
-                    <TableCell>
+                    <TableCell className="overflow-hidden">
                       <div className="grid gap-1">
                         <Label className="sr-only">ABAP Resource</Label>
                         <Select
@@ -242,14 +282,14 @@ export default function WBSSection({
                             updateRow(r.id, { abapResourceId: val })
                           }
                         >
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger className="w-full max-w-full truncate">
                             <SelectValue
                               placeholder="Select ABAP"
                               className="truncate"
                             />
                           </SelectTrigger>
-                          <SelectContent>
-                            {resources.map((res) => (
+                          <SelectContent className="min-w-0">
+                            {abapResources.map((res) => (
                               <SelectItem key={res.id} value={String(res.id)}>
                                 <span className="block max-w-[360px] truncate">
                                   {res.name} — {res.title}

@@ -1,6 +1,3 @@
-// src/components/InitiationSection.tsx
-import * as React from "react";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { Input } from "@/components/ui/input";
@@ -8,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import type { ProjectInit } from "@/data/types";
 import SectionTitle from "./SectionTitle";
 import { Textarea } from "@/components/ui/textarea";
+import { useEffect } from "react";
 
 type Props = {
   project: ProjectInit;
@@ -15,7 +13,15 @@ type Props = {
 };
 
 export default function InitiationSection({ project, setProject }: Props) {
-  // ---- functions ----
+  const today = new Date().toISOString().split("T")[0];
+
+  useEffect(() => {
+    if (!project.creationDate) {
+      setProject((p) => ({ ...p, creationDate: today }));
+    }
+  }, [project.creationDate, setProject, today]);
+
+  // ----- actions -----
   function onChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
@@ -23,8 +29,7 @@ export default function InitiationSection({ project, setProject }: Props) {
     setProject((p) => ({ ...p, [name]: value }));
   }
 
-  const today = new Date().toISOString().split("T")[0];
-
+  // ---------- render ----------
   return (
     <section className="mt-2">
       <SectionTitle title="I. Project Charter (Initiation)" />
@@ -138,12 +143,12 @@ export default function InitiationSection({ project, setProject }: Props) {
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="grid gap-1">
-              <Label htmlFor="inScope">In-Scope Deliverables</Label>
+              <Label htmlFor="deliverables">In-Scope Deliverables</Label>
               <Textarea
-                id="inScope"
-                name="inScope"
+                id="deliverables"
+                name="deliverables"
                 placeholder="Major, tangible outputs (e.g., Fully tested DM Tool; End-User Training Materials; Formal Data Migration Sign-off.)"
-                value={project.inScope}
+                value={project.deliverables}
                 onChange={onChange}
                 rows={3}
                 maxLength={500}
