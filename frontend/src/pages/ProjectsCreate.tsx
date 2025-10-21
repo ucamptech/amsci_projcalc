@@ -1,3 +1,4 @@
+// src/pages/ProjectsCreate.tsx
 import type { Activity, Resource } from "@/api/types";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +25,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import CostSection from "@/components/CostSection";
 import DashLayout from "@/layouts/DashLayout";
+import GanttSection from "@/components/GanttSection";
 import InitiationSection from "@/components/InitiationSection";
 import WBSSection from "@/components/WBSSection";
 import { api } from "@/api/api";
@@ -34,8 +36,9 @@ import { useParams } from "react-router-dom";
 
 export default function ProjectsCreate() {
   const { id } = useParams();
-  const isDisplay = Boolean(id);
-  const isEdit = Boolean(id);
+
+  // If there's an id in the URL, show saved project.
+  const hasId = Boolean(id);
 
   const [project, setProject] = useState<ProjectInit>(EMPTY_PROJECT);
   const [signers] = useLocalStorage("pc_signers", []);
@@ -43,9 +46,11 @@ export default function ProjectsCreate() {
   const [wbsRows, setWbsRows] = useState<WbsRow[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [modal, setModal] = useState<ModalState | null>(null);
+  const [editLocked, setEditLocked] = useState<boolean>(false);
 
   // ---------- FETCH ----------
   useEffect(() => {
@@ -54,18 +59,14 @@ export default function ProjectsCreate() {
     async function retrieveFromAPI(): Promise<void> {
       setLoading(true);
       try {
-        const [activities, resources] = await Promise.all([
-          // api.login("test@example.com", "passw0rd123"),
+        const [activitiesRes, resourcesRes] = await Promise.all([
           api.getActivities(),
           api.getResources(),
         ]);
+
         if (!mounted) return;
 
-        console.log("Activities:", activities);
-        console.log("Resources:", resources);
-        console.log("----");
-
-        const rows: WbsRow[] = (activities ?? []).map((a) => ({
+        const rows: WbsRow[] = (activitiesRes ?? []).map((a) => ({
           id: cryptoId(),
           activityId: a.id || 0,
           wbsId: a.wbsId || "",
@@ -78,10 +79,10 @@ export default function ProjectsCreate() {
         }));
 
         setWbsRows(rows);
-        setActivities(activities ?? []);
-        setResources(resources ?? []);
+        setActivities(activitiesRes ?? []);
+        setResources(resourcesRes ?? []);
 
-        if (isDisplay && isEdit) {
+        if (hasId) {
           const proj = await api.getProjectById(Number(id));
           if (!mounted) return;
 
@@ -94,61 +95,45 @@ export default function ProjectsCreate() {
             measurableObjectives: proj.measurableObjectives ?? "",
             deliverables: proj.deliverables ?? "",
             outOfScope: proj.outOfScope ?? "",
-            // creationDate: proj.createdAt ? new Date(proj.createdAt).toISOString().slice(0, 10) : undefined,
-            // version: proj.version ?? "v1.0",
           });
 
-          // Merge estimates into rows
-          const rowsByActId = new Map<number, WbsRow>(
-            rows.map((r) => [Number(r.activityId), r])
-          );
-
-          for (const e of proj.estimates ?? []) {
-            const actId = Number(e.activityId);
-            let row = rowsByActId.get(actId);
-
-            if (!row) {
-              row = {
-                id: cryptoId(),
-                activityId: e.activity?.id ?? actId,
-                wbsId: e.activity?.wbsId ?? "",
-                activity: e.activity?.activity ?? `Activity ${actId}`,
-                fxResourceId: "",
-                fxMandays: 0,
-                abapResourceId: "",
-                abapMandays: 0,
+          // If API returns estimates, hydrate WBS rows:
+          if (Array.isArray(proj.estimates) && proj.estimates.length > 0) {
+            // Map existing estimates into the template rows by activityId
+            const mapped = rows.map((r) => {
+              const fx = proj.estimates?.find(
+                (estimate) =>
+                  estimate.activityId === r.activityId &&
+                  String(
+                    estimate.resource?.resourceType?.name ?? ""
+                  ).toLowerCase() === "functional"
+              );
+              const abap = proj.estimates?.find(
+                (estimate) =>
+                  estimate.activityId === r.activityId &&
+                  String(
+                    estimate.resource?.resourceType?.name ?? ""
+                  ).toLowerCase() === "technical"
+              );
+              return {
+                ...r,
+                fxResourceId: fx?.resourceId?.toString() ?? "",
+                fxMandays: fx?.mandays ?? 0,
+                abapResourceId: abap?.resourceId?.toString() ?? "",
+                abapMandays: abap?.mandays ?? 0,
               };
-              rowsByActId.set(actId, row);
-            }
-
-            const typeName =
-              e.resource?.resourceType?.name?.toLowerCase?.() ?? "";
-
-            const mandaysNum = Number(e.mandays ?? 0);
-
-            if (typeName.includes("functional")) {
-              row.fxResourceId = String(e.resourceId);
-              row.fxMandays = mandaysNum;
-            } else if (typeName.includes("technical")) {
-              row.abapResourceId = String(e.resourceId);
-              row.abapMandays = mandaysNum;
-            } else {
-              // Fallback: fill first empty slot
-              if (!row.fxResourceId) {
-                row.fxResourceId = String(e.resourceId);
-                row.fxMandays = mandaysNum;
-              } else {
-                row.abapResourceId = String(e.resourceId);
-                row.abapMandays = mandaysNum;
-              }
-            }
+            });
+            setWbsRows(mapped);
           }
 
-          const retrievedRows = Array.from(rowsByActId.values());
-          setWbsRows(retrievedRows);
+          // Saved project: unlock editing as default
+          setEditLocked(false);
+        } else {
+          // New project: unlock editing
+          setEditLocked(false);
         }
       } catch (err) {
-        // Use default data
+        // Fallback defaults if API fails
         const rows: WbsRow[] = DEFAULT_ACTIVITIES.map((a) => ({
           id: cryptoId(),
           activityId: a.id || 0,
@@ -172,13 +157,11 @@ export default function ProjectsCreate() {
       }
     }
 
-    // Call functions/voids
     void retrieveFromAPI();
-
     return () => {
       mounted = false;
     };
-  }, [isDisplay, id, isEdit]);
+  }, [hasId, id]);
 
   // ---------- derived states ----------
   const canSubmit = useMemo(() => {
@@ -231,24 +214,26 @@ export default function ProjectsCreate() {
     setSubmitBusy(true);
     try {
       const payload = buildPayload();
-      console.log("Payload: ", payload);
 
-      console.log(payload);
-
-      if (!payload.name) {
-        throw new Error("Please fill out Project Name field.");
-      }
-      if (payload.estimates.length === 0) {
+      if (!payload.name) throw new Error("Please fill out Project Name field.");
+      if (payload.estimates.length === 0)
         throw new Error(
           "Add at least one estimate (Resource + Mandays) in WBS."
         );
-      }
 
-      await api.createProject(payload);
-      setModal({ type: "success", message: "Project created successfully." });
+      if (hasId) {
+        await api.updateProject(Number(id), payload);
+        setModal({ type: "success", message: "Project updated successfully." });
+      } else {
+        const result = await api.createProject(payload);
+        // If API returns an ID, optionally route to its page:
+        console.log("Result", result);
+        // if (result) navigate(`/projects/${result.id}`);
+        setModal({ type: "success", message: "Project created successfully." });
+      }
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to create project.";
+        err instanceof Error ? err.message : "Failed to save project.";
       setModal({ type: "error", message });
     } finally {
       setSubmitBusy(false);
@@ -257,38 +242,68 @@ export default function ProjectsCreate() {
 
   // ---------- render ----------
   return (
-    <DashLayout title="Create new project">
+    <DashLayout title={hasId ? "Project details" : "Create new project"}>
       {loading ? (
         <Card>
           <CardContent className="py-8">Loading…</CardContent>
         </Card>
       ) : (
         <>
-          <InitiationSection project={project} setProject={setProject} />
+          {/* Sections */}
+          <InitiationSection
+            project={project}
+            setProject={setProject}
+            lockActivity={editLocked}
+          />
+
           <WBSSection
             wbsRows={wbsRows}
             setWbsRows={setWbsRows}
             resources={resources}
             activities={activities}
-            lockActivity={isEdit}
+            lockActivity={editLocked}
           />
-          {/* <AuthorizationSection /> */}
+
           <CostSection wbsRows={wbsRows} resources={resources} />
 
+          {/* <GanttSection wbsRows={wbsRows} resources={resources} /> */}
+
+          {/* Actions */}
           <div className="flex items-center justify-end mb-3 mt-4">
             <div className="flex gap-2">
+              {/* <Button
+                variant={editLocked ? "secondary" : "outline"}
+                onClick={() => setEditLocked((v) => !v)}
+              >
+                {editLocked ? (
+                  <>
+                    <LockOpen className="mr-2 h-4 w-4" />
+                    Unlock Editing
+                  </>
+                ) : (
+                  <>
+                    <Lock className="mr-2 h-4 w-4" />
+                    Lock Editing
+                  </>
+                )}
+              </Button> */}
+
               <Button variant="outline" onClick={onGenerateExcel}>
                 Generate Excel
               </Button>
+
               <Button
-                disabled={!canSubmit || submitBusy}
+                disabled={!canSubmit || submitBusy || editLocked}
                 onClick={onSubmitProject}
+                title={
+                  editLocked ? "Unlock editing to save changes." : undefined
+                }
               >
                 {submitBusy
-                  ? isEdit
+                  ? hasId
                     ? "Saving…"
                     : "Creating…"
-                  : isEdit
+                  : hasId
                   ? "Save Changes"
                   : "Create Project"}
               </Button>

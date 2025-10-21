@@ -10,9 +10,14 @@ import { useEffect } from "react";
 type Props = {
   project: ProjectInit;
   setProject: (p: (prev: ProjectInit) => ProjectInit) => void;
+  lockActivity?: boolean;
 };
 
-export default function InitiationSection({ project, setProject }: Props) {
+export default function InitiationSection({
+  project,
+  setProject,
+  lockActivity = false,
+}: Props) {
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
@@ -50,6 +55,7 @@ export default function InitiationSection({ project, setProject }: Props) {
                 value={project.name}
                 onChange={onChange}
                 maxLength={50}
+                disabled={lockActivity}
                 required
               />
             </div>
@@ -62,6 +68,7 @@ export default function InitiationSection({ project, setProject }: Props) {
                 value={project.sponsor}
                 onChange={onChange}
                 maxLength={50}
+                disabled={lockActivity}
               />
             </div>
             <div className="grid gap-1">
@@ -73,6 +80,7 @@ export default function InitiationSection({ project, setProject }: Props) {
                 value={project.manager}
                 onChange={onChange}
                 maxLength={50}
+                disabled={lockActivity}
               />
             </div>
           </div>
@@ -87,6 +95,7 @@ export default function InitiationSection({ project, setProject }: Props) {
                 value={project.creationDate ?? ""}
                 onChange={onChange}
                 max={today}
+                disabled={lockActivity}
               />
             </div>
             <div className="grid gap-1">
@@ -98,6 +107,7 @@ export default function InitiationSection({ project, setProject }: Props) {
                 value={project.version}
                 onChange={onChange}
                 maxLength={10}
+                disabled={lockActivity}
               />
             </div>
           </div>
@@ -112,6 +122,7 @@ export default function InitiationSection({ project, setProject }: Props) {
               onChange={onChange}
               rows={3}
               maxLength={500}
+              disabled={lockActivity}
             />
           </div>
 
@@ -125,6 +136,7 @@ export default function InitiationSection({ project, setProject }: Props) {
               onChange={onChange}
               rows={3}
               maxLength={500}
+              disabled={lockActivity}
             />
           </div>
 
@@ -138,6 +150,7 @@ export default function InitiationSection({ project, setProject }: Props) {
               onChange={onChange}
               rows={3}
               maxLength={500}
+              disabled={lockActivity}
             />
           </div>
 
@@ -152,6 +165,7 @@ export default function InitiationSection({ project, setProject }: Props) {
                 onChange={onChange}
                 rows={3}
                 maxLength={500}
+                disabled={lockActivity}
               />
             </div>
             <div className="grid gap-1">
@@ -164,6 +178,7 @@ export default function InitiationSection({ project, setProject }: Props) {
                 onChange={onChange}
                 rows={3}
                 maxLength={500}
+                disabled={lockActivity}
               />
             </div>
           </div>

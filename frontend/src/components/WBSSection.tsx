@@ -39,7 +39,7 @@ export default function WBSSection({
   setWbsRows,
   resources,
   activities,
-  lockActivity = true,
+  lockActivity = false,
 }: Props) {
   const isSingleRow = wbsRows.length <= 1;
 
@@ -225,6 +225,7 @@ export default function WBSSection({
                       <div className="grid gap-1">
                         <Label className="sr-only">FX Resource</Label>
                         <Select
+                          disabled={lockActivity}
                           value={String(r.fxResourceId ?? "")}
                           onValueChange={(val) =>
                             updateRow(r.id, { fxResourceId: val })
@@ -253,9 +254,10 @@ export default function WBSSection({
                     <TableCell className="text-right">
                       <Input
                         className="w-full text-right"
+                        readOnly={lockActivity}
                         inputMode="decimal"
                         type="number"
-                        step="0.01"
+                        step="0.1"
                         min={0}
                         max={400}
                         value={r.fxMandays}
@@ -277,6 +279,7 @@ export default function WBSSection({
                       <div className="grid gap-1">
                         <Label className="sr-only">ABAP Resource</Label>
                         <Select
+                          disabled={lockActivity}
                           value={String(r.abapResourceId ?? "")}
                           onValueChange={(val) =>
                             updateRow(r.id, { abapResourceId: val })
@@ -305,9 +308,10 @@ export default function WBSSection({
                     <TableCell className="text-right">
                       <Input
                         className="w-full text-right"
+                        readOnly={lockActivity}
                         inputMode="decimal"
                         type="number"
-                        step="0.01"
+                        step="0.1"
                         min={0}
                         max={400}
                         value={r.abapMandays}

@@ -157,6 +157,7 @@ export const api = {
     return await http("/projects", { method: "POST", data: payload });
   },
   async updateProject(id: string | number, payload: ProjectPayload) {
+    console.log("API payload", payload);
     return await http(`/projects/${id}`, { method: "PUT", data: payload });
   },
 
