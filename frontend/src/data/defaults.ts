@@ -1,13 +1,13 @@
-import type { ProjectInit, Resource } from "./types";
+import type { Activity, ProjectInit, Resource } from "./types";
 
-export const DEFAULT_ACTIVITIES = [
+export const DEFAULT_ACTIVITIES: Activity[] = [
   { id: 1, wbsId: "2.1", activity: "Requirements Gathering" },
   { id: 2, wbsId: "2.2", activity: "Functional Design" },
   { id: 3, wbsId: "3.1", activity: "Code Development" },
   { id: 4, wbsId: "4.1", activity: "Unit Testing" },
-  { id: 5, wbsId: "5.1", activity: "UAT Support" }, // matches your seeder
+  { id: 5, wbsId: "5.1", activity: "UAT Support" },
   { id: 6, wbsId: "6.1", activity: "Post PRD Support" },
-] as const;
+];
 
 export const DEFAULT_RESOURCES: Resource[] = [
   {
@@ -44,6 +44,19 @@ export const DEFAULT_PROJECTS: ProjectInit[] = [
     sponsor: "Athena",
     manager: "Medusa",
     version: "v1.0",
+    creationDate: "2025-10-17",
+    businessNeed: "",
+    projectGoal: "",
+    measurableObjectives: "",
+    inScope: "",
+    outOfScope: "",
+  },
+  {
+    id: 3,
+    name: "Project B",
+    sponsor: "Athena",
+    manager: "Medusa",
+    version: "v2.0",
     creationDate: "2025-10-17",
     businessNeed: "",
     projectGoal: "",
