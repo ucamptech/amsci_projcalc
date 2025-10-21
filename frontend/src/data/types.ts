@@ -1,15 +1,16 @@
+export type ModalState = { type: "error" | "success"; message: string };
 export interface ProjectInit {
   id?: number;
   name: string;
   sponsor: string;
   manager: string;
-  version: string;
+  version?: string;
   creationDate?: string;
-  businessNeed: string;
-  projectGoal: string;
-  measurableObjectives: string;
-  deliverables: string;
-  outOfScope: string;
+  businessNeed?: string;
+  projectGoal?: string;
+  measurableObjectives?: string;
+  deliverables?: string;
+  outOfScope?: string;
 }
 
 export interface WbsRow {
@@ -28,7 +29,6 @@ export interface EstimatePayload {
   resourceId: number;
   activityId: number;
   mandays: number;
-  activity?: string;
 }
 
 export interface ProjectPayload {

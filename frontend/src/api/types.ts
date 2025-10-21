@@ -50,10 +50,35 @@ export interface Project {
   sponsor: string;
   manager: string;
   version: string;
-  businessNeed: string;
-  projectGoal: string;
-  measurableObjectives: string;
-  deliverables: string;
-  outOfScope: string;
+  businessNeed?: string;
+  projectGoal?: string;
+  measurableObjectives?: string;
+  deliverables?: string;
+  outOfScope?: string;
   creationDate?: string;
+}
+
+export type ProjectResponse = PaginatedResponse<Project>;
+
+export interface Estimate {
+  id: number;
+  projectId: number;
+  activityId: number;
+  resourceId: number;
+  mandays: number;
+  activity?: { id: number; wbsId: string; activity: string };
+  resource?: Resource;
+}
+
+export interface ProjectDetail {
+  id: number;
+  name: string;
+  manager?: string | "";
+  sponsor?: string | "";
+  businessNeed?: string | "";
+  projectGoal?: string | "";
+  measurableObjectives?: string | "";
+  deliverables?: string | "";
+  outOfScope?: string | "";
+  estimates?: Estimate[];
 }

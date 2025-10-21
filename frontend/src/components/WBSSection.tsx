@@ -106,7 +106,7 @@ export default function WBSSection({
 
   // ---------- render ----------
   return (
-    <section className="mt-6">
+    <section className="mt-6 gap-0">
       <SectionTitle title="II. High-Level WBS Breakdown with Estimated Effort" />
 
       <Card>

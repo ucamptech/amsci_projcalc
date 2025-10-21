@@ -13,10 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { ProjectInit, ProjectPayload, WbsRow } from "@/data/types";
+import type {
+  ModalState,
+  ProjectInit,
+  ProjectPayload,
+  WbsRow,
+} from "@/data/types";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import CostSection from "@/components/CostSection";
 import DashLayout from "@/layouts/DashLayout";
 import InitiationSection from "@/components/InitiationSection";
 import WBSSection from "@/components/WBSSection";
@@ -24,10 +30,13 @@ import { api } from "@/api/api";
 import { cryptoId } from "@/utils/number";
 import { exportProjectCharterExcel } from "@/utils/xlsxExport";
 import useLocalStorage from "@/hooks/useLocalStorage";
-
-type ModalState = { type: "error" | "success"; message: string };
+import { useParams } from "react-router-dom";
 
 export default function ProjectsCreate() {
+  const { id } = useParams();
+  const isDisplay = Boolean(id);
+  const isEdit = Boolean(id);
+
   const [project, setProject] = useState<ProjectInit>(EMPTY_PROJECT);
   const [signers] = useLocalStorage("pc_signers", []);
 
@@ -69,8 +78,75 @@ export default function ProjectsCreate() {
         }));
 
         setWbsRows(rows);
-        setActivities(activities);
+        setActivities(activities ?? []);
         setResources(resources ?? []);
+
+        if (isDisplay && isEdit) {
+          const proj = await api.getProjectById(Number(id));
+          if (!mounted) return;
+
+          setProject({
+            name: proj.name ?? "",
+            sponsor: proj.sponsor ?? "",
+            manager: proj.manager ?? "",
+            businessNeed: proj.businessNeed ?? "",
+            projectGoal: proj.projectGoal ?? "",
+            measurableObjectives: proj.measurableObjectives ?? "",
+            deliverables: proj.deliverables ?? "",
+            outOfScope: proj.outOfScope ?? "",
+            // creationDate: proj.createdAt ? new Date(proj.createdAt).toISOString().slice(0, 10) : undefined,
+            // version: proj.version ?? "v1.0",
+          });
+
+          // Merge estimates into rows
+          const rowsByActId = new Map<number, WbsRow>(
+            rows.map((r) => [Number(r.activityId), r])
+          );
+
+          for (const e of proj.estimates ?? []) {
+            const actId = Number(e.activityId);
+            let row = rowsByActId.get(actId);
+
+            if (!row) {
+              row = {
+                id: cryptoId(),
+                activityId: e.activity?.id ?? actId,
+                wbsId: e.activity?.wbsId ?? "",
+                activity: e.activity?.activity ?? `Activity ${actId}`,
+                fxResourceId: "",
+                fxMandays: 0,
+                abapResourceId: "",
+                abapMandays: 0,
+              };
+              rowsByActId.set(actId, row);
+            }
+
+            const typeName =
+              e.resource?.resourceType?.name?.toLowerCase?.() ?? "";
+
+            const mandaysNum = Number(e.mandays ?? 0);
+
+            if (typeName.includes("functional")) {
+              row.fxResourceId = String(e.resourceId);
+              row.fxMandays = mandaysNum;
+            } else if (typeName.includes("technical")) {
+              row.abapResourceId = String(e.resourceId);
+              row.abapMandays = mandaysNum;
+            } else {
+              // Fallback: fill first empty slot
+              if (!row.fxResourceId) {
+                row.fxResourceId = String(e.resourceId);
+                row.fxMandays = mandaysNum;
+              } else {
+                row.abapResourceId = String(e.resourceId);
+                row.abapMandays = mandaysNum;
+              }
+            }
+          }
+
+          const retrievedRows = Array.from(rowsByActId.values());
+          setWbsRows(retrievedRows);
+        }
       } catch (err) {
         // Use default data
         const rows: WbsRow[] = DEFAULT_ACTIVITIES.map((a) => ({
@@ -102,7 +178,7 @@ export default function ProjectsCreate() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isDisplay, id, isEdit]);
 
   // ---------- derived states ----------
   const canSubmit = useMemo(() => {
@@ -151,7 +227,7 @@ export default function ProjectsCreate() {
     };
   }
 
-  async function onCreateProject(): Promise<void> {
+  async function onSubmitProject(): Promise<void> {
     setSubmitBusy(true);
     try {
       const payload = buildPayload();
@@ -194,9 +270,10 @@ export default function ProjectsCreate() {
             setWbsRows={setWbsRows}
             resources={resources}
             activities={activities}
-            lockActivity={false}
+            lockActivity={isEdit}
           />
           {/* <AuthorizationSection /> */}
+          <CostSection wbsRows={wbsRows} resources={resources} />
 
           <div className="flex items-center justify-end mb-3 mt-4">
             <div className="flex gap-2">
@@ -205,9 +282,15 @@ export default function ProjectsCreate() {
               </Button>
               <Button
                 disabled={!canSubmit || submitBusy}
-                onClick={onCreateProject}
+                onClick={onSubmitProject}
               >
-                {submitBusy ? "Creating…" : "Create Project"}
+                {submitBusy
+                  ? isEdit
+                    ? "Saving…"
+                    : "Creating…"
+                  : isEdit
+                  ? "Save Changes"
+                  : "Create Project"}
               </Button>
             </div>
           </div>

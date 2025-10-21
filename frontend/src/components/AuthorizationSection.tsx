@@ -4,7 +4,7 @@ import SectionTitle from "./SectionTitle";
 
 export default function AuthorizationSection() {
   return (
-    <section className="mt-6">
+    <section className="mt-6 gap-0">
       <SectionTitle title="III. Authorization" />
       <Card>
         <CardHeader>

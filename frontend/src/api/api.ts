@@ -1,6 +1,9 @@
 import type {
   Activity,
   ActivityResponse,
+  Project,
+  ProjectDetail,
+  ProjectResponse,
   Resource,
   ResourceResponse,
 } from "./types";
@@ -142,10 +145,12 @@ export const api = {
   /** PROTECTED ROUTES */
 
   /** PROJECTS */
-  async getProjects() {
-    return await http("/projects");
+  async getProjects(): Promise<Project[]> {
+    const projects = await http<ProjectResponse>("/projects");
+
+    return projects.data;
   },
-  async getProjectById(id: string | number) {
+  async getProjectById(id: string | number): Promise<ProjectDetail> {
     return await http(`/projects/${id}`);
   },
   async createProject(payload: ProjectPayload) {

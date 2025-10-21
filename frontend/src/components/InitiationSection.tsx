@@ -31,7 +31,7 @@ export default function InitiationSection({ project, setProject }: Props) {
 
   // ---------- render ----------
   return (
-    <section className="mt-2">
+    <section className="mt-2 gap-0">
       <SectionTitle title="I. Project Charter (Initiation)" />
       <Card>
         <CardHeader>
