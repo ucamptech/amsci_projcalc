@@ -30,7 +30,7 @@ export default class ProjectsController {
 
     const trx = await db.transaction()
 
-    const project = await Project.query()
+    let project = await Project.query()
       .where('id', params.id)
       .preload('estimates', (estimatesQuery) => {
         estimatesQuery.preload('activity')
@@ -39,12 +39,31 @@ export default class ProjectsController {
       .firstOrFail()
     await project.merge({ ...projectPayload }).save()
 
+    // Update or delete existing estimates
     project.estimates.forEach(async (estimate) => {
       let estimateUpdate = estimatesPayload.estimates.find((e: Estimate) => e.id === estimate.id)
-      await estimate.merge(estimateUpdate).save()
+      if (estimateUpdate) {
+        await estimate.merge(estimateUpdate).save()
+      } else {
+        await estimate.delete()
+      }
     })
 
+    // Create new estimates
+    const newEstimates = estimatesPayload.estimates.filter((e: Estimate) => !e.id)
+    if (newEstimates.length > 0) {
+      await project.related('estimates').createMany(newEstimates)
+    }
+
     await trx.commit()
+
+    project = await Project.query()
+      .where('id', params.id)
+      .preload('estimates', (estimatesQuery) => {
+        estimatesQuery.preload('activity')
+        estimatesQuery.preload('resource')
+      })
+      .firstOrFail()
 
     return project
   }

@@ -8,7 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
       table.integer('project_id').unsigned().references('projects.id')
       table.integer('activity_id').unsigned().references('activities.id')
-      table.integer('resource_id').unsigned().references('estimates.id')
+      table.integer('resource_id').unsigned().references('resources.id')
       table.decimal('mandays', 10, 2)
 
       table.timestamp('created_at')
@@ -17,6 +17,11 @@ export default class extends BaseSchema {
   }
 
   async down() {
+    this.schema.alterTable(this.tableName, (table) => {
+      table.dropForeign('resource_id')
+      table.dropForeign('project_id')
+      table.dropForeign('activity_id')
+    })
     this.schema.dropTable(this.tableName)
   }
 }
