@@ -1,18 +1,16 @@
-// src/layouts/DashLayout.tsx
-import * as React from "react";
-
 import Footer from "@/layouts/Footer";
 import Navbar from "@/layouts/Navbar";
 import Sidebar from "@/layouts/Sidebar";
+import { useState, type ReactNode } from "react";
 
 export default function DashLayout({
   children,
   title = "Dashboard",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   title?: string;
 }) {
-  const [collapsed, setCollapsed] = React.useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">

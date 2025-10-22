@@ -1,4 +1,3 @@
-// src/pages/ProjectsCreate.tsx
 import type { Activity, Resource } from "@/api/types";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,21 +20,21 @@ import type {
   WbsRow,
 } from "@/data/types";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import CostSection from "@/components/CostSection";
 import DashLayout from "@/layouts/DashLayout";
-import GanttSection from "@/components/GanttSection";
 import InitiationSection from "@/components/InitiationSection";
 import WBSSection from "@/components/WBSSection";
 import { api } from "@/api/api";
 import { cryptoId } from "@/utils/number";
 import { exportProjectCharterExcel } from "@/utils/xlsxExport";
 import useLocalStorage from "@/hooks/useLocalStorage";
-import { useParams } from "react-router-dom";
 
 export default function ProjectsCreate() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   // If there's an id in the URL, show saved project.
   const hasId = Boolean(id);
@@ -151,7 +150,11 @@ export default function ProjectsCreate() {
 
         const message =
           err instanceof Error ? err.message : "Server unavailable.";
-        setModal({ type: "error", message: `Server offline. (${message})` });
+        if (message == "Row not found") {
+          navigate("/projects/create", { replace: true });
+        } else {
+          setModal({ type: "error", message: `Server offline. (${message})` });
+        }
       } finally {
         setLoading(false);
       }
@@ -161,7 +164,7 @@ export default function ProjectsCreate() {
     return () => {
       mounted = false;
     };
-  }, [hasId, id]);
+  }, [hasId, id, navigate]);
 
   // ---------- derived states ----------
   const canSubmit = useMemo(() => {
@@ -227,8 +230,7 @@ export default function ProjectsCreate() {
       } else {
         const result = await api.createProject(payload);
         // If API returns an ID, optionally route to its page:
-        console.log("Result", result);
-        // if (result) navigate(`/projects/${result.id}`);
+        if (result && result.id) navigate(`/projects/${result.id}`);
         setModal({ type: "success", message: "Project created successfully." });
       }
     } catch (err) {

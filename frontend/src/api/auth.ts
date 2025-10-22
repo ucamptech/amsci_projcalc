@@ -24,4 +24,5 @@ export function restoreTokenFromStorage(): string | null {
 export function clearToken() {
   inMemoryToken = null;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem("pc_auth_user");
 }

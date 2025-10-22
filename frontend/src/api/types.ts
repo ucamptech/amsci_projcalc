@@ -17,6 +17,15 @@ export interface PaginatedResponse<T> {
   data: T[];
 }
 
+/* ---------------------- USERS ---------------------- */
+export interface User {
+  type: string;
+  name?: string;
+  token: string;
+  lastUsedAt?: string;
+  expiresAt?: string;
+}
+
 /* ---------------------- RESOURCES ---------------------- */
 export interface ResourceType {
   id?: number;
@@ -49,7 +58,7 @@ export interface Project {
   name: string;
   sponsor: string;
   manager: string;
-  version: string;
+  version?: string;
   businessNeed?: string;
   projectGoal?: string;
   measurableObjectives?: string;
@@ -66,7 +75,7 @@ export interface Estimate {
   activityId: number;
   resourceId: number;
   mandays: number;
-  activity?: { id: number; wbsId: string; activity: string };
+  activity?: Activity;
   resource?: Resource;
 }
 

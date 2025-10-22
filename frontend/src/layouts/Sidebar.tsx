@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { List, LogOut, Plus, Settings, User } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Tooltip,
   TooltipContent,
@@ -16,8 +17,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { NavLink } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
+import { api } from "@/api/api";
 
 export default function Sidebar({
   collapsed,
@@ -30,6 +31,7 @@ export default function Sidebar({
 }) {
   const effectiveCollapsed = isMobile ? false : collapsed;
   const MOCK_USER = { name: "Percy Jackson", email: "pjackson@gmail.com" };
+  const navigate = useNavigate();
 
   const getInitials = (name: string) =>
     name
@@ -38,6 +40,12 @@ export default function Sidebar({
       .join("")
       .slice(0, 2)
       .toUpperCase();
+
+  async function handleLogout() {
+    console.log("logout");
+    await api.logout();
+    navigate("/login", { replace: true }); // redirect after logout
+  }
 
   return (
     <aside
@@ -167,7 +175,7 @@ export default function Sidebar({
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
+            {/* <DropdownMenuItem asChild>
               <a
                 href="/signout"
                 className="flex items-center gap-2 text-red-600"
@@ -175,6 +183,13 @@ export default function Sidebar({
                 <LogOut className="h-4 w-4" />
                 <span>Sign out</span>
               </a>
+            </DropdownMenuItem> */}
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-red-600 cursor-pointer"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sign out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

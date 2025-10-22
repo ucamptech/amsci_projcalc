@@ -6,6 +6,7 @@ import type {
   ProjectResponse,
   Resource,
   ResourceResponse,
+  User,
 } from "./types";
 import axios, { AxiosHeaders } from "axios";
 import {
@@ -114,15 +115,14 @@ export const api = {
   /** PUBLIC ROUTES */
 
   /** AUTH */
-  async login(email: string, password: string) {
-    const data = await http<{
-      token?: { type?: string; value?: string } | string;
-      user?: string;
-    }>("/auth/login", { method: "POST", data: { email, password } });
+  async login(email: string, password: string): Promise<User> {
+    const data = await http<User>("/auth/login", {
+      method: "POST",
+      data: { email, password },
+    });
 
     const raw = data?.token;
-    const token =
-      typeof raw === "string" ? raw : (raw?.value as string | undefined);
+    const token = typeof raw === "string" ? raw : undefined;
 
     if (token) {
       setToken(token);
@@ -145,18 +145,25 @@ export const api = {
   /** PROTECTED ROUTES */
 
   /** PROJECTS */
-  async getProjects(): Promise<Project[]> {
-    const projects = await http<ProjectResponse>("/projects");
-
-    return projects.data;
+  async getProjects(params: {
+    page?: number;
+    perPage?: number;
+    sort?: "name" | "sponsor" | "manager" | "version" | "creationDate";
+    order?: "asc" | "desc";
+    search?: string;
+  }): Promise<ProjectResponse> {
+    return await http<ProjectResponse>("/projects", { params });
   },
   async getProjectById(id: string | number): Promise<ProjectDetail> {
     return await http(`/projects/${id}`);
   },
-  async createProject(payload: ProjectPayload) {
+  async createProject(payload: ProjectPayload): Promise<Project> {
     return await http("/projects", { method: "POST", data: payload });
   },
-  async updateProject(id: string | number, payload: ProjectPayload) {
+  async updateProject(
+    id: string | number,
+    payload: ProjectPayload
+  ): Promise<ProjectDetail> {
     console.log("API payload", payload);
     return await http(`/projects/${id}`, { method: "PUT", data: payload });
   },
@@ -169,16 +176,15 @@ export const api = {
   },
 
   /** RESOURCES */
-  async getResources(
-    filter?: "Technical" | "Functional" | string
-  ): Promise<Resource[]> {
-    const resources = await http<ResourceResponse>("/resources");
+  async getResources(params?: {
+    page?: number;
+    perPage?: number;
+    resourceTypeId?: number; // 1=Functional, 2=Technical
+  }): Promise<Resource[]> {
+    const resources = await http<ResourceResponse>("/resources", {
+      params,
+    });
 
-    if (!filter) return resources.data;
-
-    const keyword = filter.toLowerCase();
-    return resources.data.filter((r) =>
-      r.resourceType?.name?.toLowerCase().includes(keyword)
-    );
+    return resources.data;
   },
 };

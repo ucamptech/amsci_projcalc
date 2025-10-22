@@ -1,4 +1,5 @@
 import { ArrowUpDown, ChevronLeft, ChevronRight, RotateCw } from "lucide-react";
+import type { Meta, Project } from "@/api/types";
 import {
   Select,
   SelectContent,
@@ -14,13 +15,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import DashLayout from "@/layouts/DashLayout";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
-import type { Project } from "@/api/types";
 import { api } from "@/api/api";
 import { toYMD } from "@/utils/number";
 
@@ -34,103 +34,70 @@ const PAGE_SIZES = [5, 10, 20, 50] as const;
 
 export default function ProjectsList() {
   const [rows, setRows] = useState<Project[]>([]);
+  const [meta, setMeta] = useState<Meta | null>(null);
+
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
   const [query, setQuery] = useState<string>("");
+  const [debouncedQuery, setDebouncedQuery] = useState<string>("");
+
   const [sortKey, setSortKey] = useState<SortKey>("creationDate");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState<number>(1);
 
-  // Fetch from API
+  const abortRef = useRef<AbortController | null>(null);
+
+  // debounce search (300ms)
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  // fetch from API
+  useEffect(() => {
+    abortRef.current?.abort();
     const ac = new AbortController();
+    abortRef.current = ac;
+
     setLoading(true);
     setError("");
 
-    (async () => {
-      try {
-        const [projects] = await Promise.all([api.getProjects()]);
-        const data: Project[] = projects;
-
+    api
+      .getProjects({
+        page,
+        perPage: pageSize,
+        sort: sortKey,
+        order: sortDir,
+        search: debouncedQuery || undefined,
+      })
+      .then(({ data, meta }) => {
         // Map API -> UI
-        const mapped: Project[] = (data ?? []).map((p) => ({
-          id: p.id ?? 0,
-          name: p.name ?? "",
-          sponsor: p.sponsor ?? "",
-          manager: p.manager ?? "",
-          version: "",
+        const mapped = (data ?? []).map((p) => ({
+          ...p,
           creationDate: toYMD(p.creationDate) || undefined,
+          version: p.version ?? "",
         }));
-
         setRows(mapped);
-      } catch (err) {
+        setMeta(meta);
+      })
+      .catch((err) => {
+        if (ac.signal.aborted) return;
         const message =
           err instanceof Error ? err.message : "Failed to load projects.";
         setError(message);
-      } finally {
-        setLoading(false);
-      }
-    })();
+        setRows([]);
+        setMeta(null);
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setLoading(false);
+      });
 
     return () => ac.abort();
-  }, []);
+  }, [page, pageSize, sortKey, sortDir, debouncedQuery]);
 
-  // Filter (search only)
-  const normalizedQuery = query.trim().toLowerCase();
-  const filtered = useMemo(() => {
-    if (!normalizedQuery) return rows;
-    return rows.filter((r) => {
-      const hay = [
-        r.name,
-        r.sponsor,
-        r.manager,
-        r.version,
-        r.creationDate ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(normalizedQuery);
-    });
-  }, [rows, normalizedQuery]);
-
-  // Sort
-  const sorted = useMemo(() => {
-    const copy = [...filtered];
-    copy.sort((a, b) => {
-      const av = (a[sortKey] ?? "") as string;
-      const bv = (b[sortKey] ?? "") as string;
-
-      if (sortKey === "creationDate") {
-        const aTime = av ? Date.parse(av) : 0;
-        const bTime = bv ? Date.parse(bv) : 0;
-        return sortDir === "asc" ? aTime - bTime : bTime - aTime;
-      }
-
-      const cmp = av.localeCompare(bv, undefined, { sensitivity: "base" });
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-    return copy;
-  }, [filtered, sortKey, sortDir]);
-
-  // Pagination
-  const total = sorted.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  useEffect(() => {
-    setPage((p) => Math.min(Math.max(1, p), totalPages));
-  }, [totalPages]);
-
-  const paged = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    return sorted.slice(start, end);
-  }, [sorted, page, pageSize]);
-  console.log("----");
-  console.log(paged);
-
-  // Handlers
+  // clicking a sort head triggers server-side sort and resets to page 1
   function onClickSort(col: SortKey) {
     if (sortKey === col) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -138,7 +105,26 @@ export default function ProjectsList() {
       setSortKey(col);
       setSortDir("asc");
     }
+    setPage(1);
   }
+
+  const total = meta?.total ?? 0;
+  const lastPage = meta?.lastPage ?? Math.max(1, Math.ceil(total / pageSize));
+
+  const showingFrom = useMemo(() => {
+    if (!total) return 0;
+    // If backend meta is present, compute from meta; else fallback
+    const start = (meta?.currentPage ?? page) - 1;
+    const per = meta?.perPage ?? pageSize;
+    return start * per + (rows.length ? 1 : 0);
+  }, [meta, page, pageSize, rows.length, total]);
+
+  const showingTo = useMemo(() => {
+    if (!total) return 0;
+    const per = meta?.perPage ?? pageSize;
+    const cur = meta?.currentPage ?? page;
+    return Math.min(cur * per, total);
+  }, [meta, page, pageSize, total]);
 
   return (
     <DashLayout title="Projects">
@@ -199,8 +185,8 @@ export default function ProjectsList() {
             variant="outline"
             size="sm"
             onClick={() => {
-              // force a reload of this route
-              window.location.reload();
+              // Re-fetch current params
+              setPage((p) => p);
             }}
             className="ml-auto"
           >
@@ -249,8 +235,7 @@ export default function ProjectsList() {
           </TableHeader>
 
           <TableBody>
-            {(!loading && paged.length === 0) ||
-            (!!error && rows.length === 0) ? (
+            {!loading && rows.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={5}
@@ -260,8 +245,8 @@ export default function ProjectsList() {
                 </TableCell>
               </TableRow>
             ) : (
-              paged.map((p, i) => (
-                <TableRow key={`${p.name}-${i}`}>
+              rows.map((p, i) => (
+                <TableRow key={`${p.id ?? p.name}-${i}`}>
                   <TableCell className="font-medium">
                     <Link
                       to={`/projects/${p.id}`}
@@ -281,18 +266,12 @@ export default function ProjectsList() {
         </Table>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination (server-side) */}
       <div className="flex flex-col items-center justify-between gap-3 sm:flex-row mt-4">
         <div className="text-sm text-muted-foreground">
-          Showing{" "}
-          <span className="font-medium">
-            {sorted.length === 0 ? 0 : (page - 1) * pageSize + 1}
-          </span>{" "}
-          to{" "}
-          <span className="font-medium">
-            {Math.min(page * pageSize, sorted.length)}
-          </span>{" "}
-          of <span className="font-medium">{sorted.length}</span> projects
+          Showing <span className="font-medium">{showingFrom}</span> to{" "}
+          <span className="font-medium">{showingTo}</span> of{" "}
+          <span className="font-medium">{total}</span> projects
         </div>
 
         <div className="flex items-center gap-2">
@@ -300,29 +279,21 @@ export default function ProjectsList() {
             variant="outline"
             size="icon"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
+            disabled={loading || page <= 1}
             aria-label="Previous page"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm">
-            Page <span className="font-medium">{page}</span> of{" "}
-            <span className="font-medium">
-              {Math.max(1, Math.ceil(sorted.length / pageSize))}
-            </span>
+            Page{" "}
+            <span className="font-medium">{meta?.currentPage ?? page}</span> of{" "}
+            <span className="font-medium">{lastPage}</span>
           </span>
           <Button
             variant="outline"
             size="icon"
-            onClick={() =>
-              setPage((p) =>
-                Math.min(
-                  Math.max(1, Math.ceil(sorted.length / pageSize)),
-                  p + 1
-                )
-              )
-            }
-            disabled={page >= Math.max(1, Math.ceil(sorted.length / pageSize))}
+            onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
+            disabled={loading || page >= lastPage}
             aria-label="Next page"
           >
             <ChevronRight className="h-4 w-4" />
