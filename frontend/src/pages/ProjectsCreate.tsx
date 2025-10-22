@@ -83,6 +83,7 @@ export default function ProjectsCreate() {
 
         if (hasId) {
           const proj = await api.getProjectById(Number(id));
+          console.log("proj:", proj);
           if (!mounted) return;
 
           setProject({
@@ -95,6 +96,7 @@ export default function ProjectsCreate() {
             deliverables: proj.deliverables ?? "",
             outOfScope: proj.outOfScope ?? "",
           });
+          console.log("Estimates", proj.estimates);
 
           // If API returns estimates, hydrate WBS rows:
           if (Array.isArray(proj.estimates) && proj.estimates.length > 0) {
@@ -114,14 +116,18 @@ export default function ProjectsCreate() {
                     estimate.resource?.resourceType?.name ?? ""
                   ).toLowerCase() === "technical"
               );
+
               return {
                 ...r,
+                fxId: fx?.id,
                 fxResourceId: fx?.resourceId?.toString() ?? "",
                 fxMandays: fx?.mandays ?? 0,
+                abapId: abap?.id,
                 abapResourceId: abap?.resourceId?.toString() ?? "",
                 abapMandays: abap?.mandays ?? 0,
               };
             });
+            console.log("Mapped: ", mapped);
             setWbsRows(mapped);
           }
 
@@ -139,8 +145,10 @@ export default function ProjectsCreate() {
           wbsId: a.wbsId || "",
           activity: a.activity || "New Activity",
           level: 0,
+          fxId: 0,
           fxResourceId: "",
           fxMandays: 0,
+          abapId: 0,
           abapResourceId: "",
           abapMandays: 0,
         }));
@@ -185,19 +193,28 @@ export default function ProjectsCreate() {
   function buildPayload(): ProjectPayload {
     const estimates: ProjectPayload["estimates"] = [];
     for (const r of wbsRows) {
-      if (r.fxResourceId && Number(r.fxMandays) > 0) {
-        estimates.push({
+      const fxMandays = Number(r.fxMandays) || 0;
+      const abapMandays = Number(r.abapMandays) || 0;
+
+      if (r.fxResourceId && fxMandays > 0) {
+        const estimate = {
           resourceId: Number(r.fxResourceId),
           activityId: Number(r.activityId),
-          mandays: Number(r.fxMandays),
-        });
+          mandays: fxMandays,
+        };
+        estimates.push(
+          r.fxId && r.fxId != 0 ? { ...estimate, id: r.fxId } : estimate
+        );
       }
-      if (r.abapResourceId && Number(r.abapMandays) > 0) {
-        estimates.push({
+      if (r.abapResourceId && abapMandays > 0) {
+        const estimate = {
           resourceId: Number(r.abapResourceId),
           activityId: Number(r.activityId),
-          mandays: Number(r.abapMandays),
-        });
+          mandays: abapMandays,
+        };
+        estimates.push(
+          r.abapId && r.abapId != 0 ? { ...estimate, id: r.abapId } : estimate
+        );
       }
     }
     return {
@@ -217,6 +234,7 @@ export default function ProjectsCreate() {
     setSubmitBusy(true);
     try {
       const payload = buildPayload();
+      console.log("Payload: ", payload);
 
       if (!payload.name) throw new Error("Please fill out Project Name field.");
       if (payload.estimates.length === 0)

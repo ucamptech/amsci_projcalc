@@ -299,7 +299,7 @@ export default function CostSection({ wbsRows, resources }: Props) {
                     Total
                   </TableCell>
                   <TableCell className="text-right font-bold">
-                    {totalDays}
+                    {totalDays.toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right font-bold">
                     {toMoney(grandTotal)}

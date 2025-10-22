@@ -14,12 +14,14 @@ export interface ProjectInit {
 }
 
 export interface WbsRow {
-  id: string;
+  id?: string;
   activityId: string | number | "";
   wbsId: string;
   activity: string;
+  fxId?: number;
   fxResourceId: string | number | "";
   fxMandays: number;
+  abapId?: number;
   abapResourceId: string | number | "";
   abapMandays: number;
 }
