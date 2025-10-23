@@ -11,7 +11,7 @@ export default function AuthorizationSection() {
           <CardTitle className="text-base">Sign-off</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Role Name Signature Date
           </p>
         </CardContent>

@@ -1,6 +1,13 @@
 import type { Activity, Resource } from "@/api/types";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import type {
+  CostByResourceInit,
+  ModalState,
+  ProjectInit,
+  ProjectPayload,
+  WbsRow,
+} from "@/data/types";
 import {
   DEFAULT_ACTIVITIES,
   DEFAULT_RESOURCES,
@@ -10,20 +17,15 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type {
-  ModalState,
-  ProjectInit,
-  ProjectPayload,
-  WbsRow,
-} from "@/data/types";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import CostSection from "@/components/CostSection";
+import CostByResourceSection from "@/components/CostByResourceSection";
 import DashLayout from "@/layouts/DashLayout";
 import GanttSection from "@/components/GanttSection";
 import InitiationSection from "@/components/InitiationSection";
@@ -31,6 +33,7 @@ import WBSSection from "@/components/WBSSection";
 import { api } from "@/api/api";
 import { cryptoId } from "@/utils/number";
 import { exportProjectCharterExcel } from "@/utils/xlsxExport";
+import { mapToWbsRows } from "@/utils/mapToWBSRows";
 import useLocalStorage from "@/hooks/useLocalStorage";
 
 export default function ProjectsCreate() {
@@ -46,6 +49,7 @@ export default function ProjectsCreate() {
   const [wbsRows, setWbsRows] = useState<WbsRow[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [byResource, setByResource] = useState<CostByResourceInit[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -97,40 +101,10 @@ export default function ProjectsCreate() {
             deliverables: proj.deliverables ?? "",
             outOfScope: proj.outOfScope ?? "",
           });
-          console.log("Estimates", proj.estimates);
 
-          // If API returns estimates, hydrate WBS rows:
-          if (Array.isArray(proj.estimates) && proj.estimates.length > 0) {
-            // Map existing estimates into the template rows by activityId
-            const mapped = rows.map((r) => {
-              const fx = proj.estimates?.find(
-                (estimate) =>
-                  estimate.activityId === r.activityId &&
-                  String(
-                    estimate.resource?.resourceType?.name ?? ""
-                  ).toLowerCase() === "functional"
-              );
-              const abap = proj.estimates?.find(
-                (estimate) =>
-                  estimate.activityId === r.activityId &&
-                  String(
-                    estimate.resource?.resourceType?.name ?? ""
-                  ).toLowerCase() === "technical"
-              );
-
-              return {
-                ...r,
-                fxId: fx?.id,
-                fxResourceId: fx?.resourceId?.toString() ?? "",
-                fxMandays: fx?.mandays ?? 0,
-                abapId: abap?.id,
-                abapResourceId: abap?.resourceId?.toString() ?? "",
-                abapMandays: abap?.mandays ?? 0,
-              };
-            });
-            console.log("Mapped: ", mapped);
-            setWbsRows(mapped);
-          }
+          const mappedWBSRows = mapToWbsRows(proj.estimates ?? []);
+          console.log("mapped: ", mappedWBSRows);
+          setWbsRows(mappedWBSRows);
 
           // Saved project: unlock editing as default
           setEditLocked(false);
@@ -181,14 +155,14 @@ export default function ProjectsCreate() {
     const hasEstimates = wbsRows.some(
       (r) =>
         (r.fxResourceId && Number(r.fxMandays) > 0) ||
-        (r.abapResourceId && Number(r.abapMandays) > 0)
+        (r.abapResourceId && Number(r.abapMandays) > 0),
     );
     return hasBasics && hasEstimates;
   }, [project, wbsRows]);
 
   // ---------- actions ----------
   function onGenerateExcel(): void {
-    exportProjectCharterExcel({ project, wbs: wbsRows, signers });
+    exportProjectCharterExcel({ project, wbs: wbsRows, signers, byResource });
   }
 
   function buildPayload(): ProjectPayload {
@@ -204,7 +178,7 @@ export default function ProjectsCreate() {
           mandays: fxMandays,
         };
         estimates.push(
-          r.fxId && r.fxId != 0 ? { ...estimate, id: r.fxId } : estimate
+          r.fxId && r.fxId != 0 ? { ...estimate, id: r.fxId } : estimate,
         );
       }
       if (r.abapResourceId && abapMandays > 0) {
@@ -214,7 +188,7 @@ export default function ProjectsCreate() {
           mandays: abapMandays,
         };
         estimates.push(
-          r.abapId && r.abapId != 0 ? { ...estimate, id: r.abapId } : estimate
+          r.abapId && r.abapId != 0 ? { ...estimate, id: r.abapId } : estimate,
         );
       }
     }
@@ -240,7 +214,7 @@ export default function ProjectsCreate() {
       if (!payload.name) throw new Error("Please fill out Project Name field.");
       if (payload.estimates.length === 0)
         throw new Error(
-          "Add at least one estimate (Resource + Mandays) in WBS."
+          "Add at least one estimate (Resource + Mandays) in WBS.",
         );
 
       if (hasId) {
@@ -285,12 +259,18 @@ export default function ProjectsCreate() {
             lockActivity={editLocked}
           />
 
-          <CostSection wbsRows={wbsRows} resources={resources} />
+          <CostByResourceSection
+            wbsRows={wbsRows}
+            resources={resources}
+            onByResourceChange={(list) => {
+              setByResource(list);
+            }}
+          />
 
           <GanttSection wbsRows={wbsRows} resources={resources} />
 
           {/* Actions */}
-          <div className="flex items-center justify-end mb-3 mt-4">
+          <div className="mt-4 mb-3 flex items-center justify-end">
             <div className="flex gap-2">
               {/* <Button
                 variant={editLocked ? "secondary" : "outline"}
@@ -325,8 +305,8 @@ export default function ProjectsCreate() {
                     ? "Saving…"
                     : "Creating…"
                   : hasId
-                  ? "Save Changes"
-                  : "Create Project"}
+                    ? "Save Changes"
+                    : "Create Project"}
               </Button>
             </div>
           </div>
@@ -355,6 +335,12 @@ export default function ProjectsCreate() {
                   {modal?.message}
                 </DialogDescription>
               </DialogHeader>
+
+              <DialogFooter>
+                <div className="mt-4 flex justify-end">
+                  <Button onClick={() => setModal(null)}>Okay</Button>
+                </div>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </>

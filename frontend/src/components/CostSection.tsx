@@ -253,9 +253,9 @@ export default function CostSection({ wbsRows, resources }: Props) {
           <CardTitle className="text-base">Breakdown by Resource</CardTitle>
         </CardHeader>
         <CardContent className="p-0 sm:p-2 md:p-4">
-          <div className="relative w-full overflow-x-auto rounded-lg border border-border">
-            <Table className="min-w-[680px] w-full text-sm align-middle">
-              <TableHeader className="sticky top-0 bg-background z-10 border-b">
+          <div className="border-border relative w-full overflow-x-auto rounded-lg border">
+            <Table className="w-full min-w-[680px] align-middle text-sm">
+              <TableHeader className="bg-background sticky top-0 z-10 border-b">
                 <TableRow>
                   <TableHead>Resource</TableHead>
                   <TableHead>Title</TableHead>
@@ -269,7 +269,7 @@ export default function CostSection({ wbsRows, resources }: Props) {
                   <TableRow>
                     <TableCell
                       colSpan={5}
-                      className="h-16 text-center text-muted-foreground"
+                      className="text-muted-foreground h-16 text-center"
                     >
                       No resources selected.
                     </TableCell>
@@ -292,7 +292,7 @@ export default function CostSection({ wbsRows, resources }: Props) {
                   ))
                 )}
               </TableBody>
-              <TableFooter className="sticky bottom-0 bg-background z-10 border-t">
+              <TableFooter className="bg-background sticky bottom-0 z-10 border-t">
                 <TableRow>
                   <TableCell colSpan={2}></TableCell>
                   <TableCell className="text-right font-medium">

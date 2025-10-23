@@ -1,24 +1,27 @@
-import type { ProjectInit, WbsRow } from "@/data/types";
+import type {
+  CostByResourceInit,
+  ProjectInit,
+  SignersInit,
+  WbsRow,
+} from "@/data/types";
 
 import { DEFAULT_RESOURCES } from "@/data/defaults";
 import ExcelJS from "exceljs";
 
-type ExportArgs = {
+type Props = {
   project: ProjectInit;
   wbs: WbsRow[];
-  signers: Array<{
-    role: string;
-    name: string;
-    signature: string;
-    date: string;
-  }>;
+  signers: SignersInit[];
+  byResource: CostByResourceInit[];
 };
 
 export async function exportProjectCharterExcel({
   project,
   wbs,
   signers,
-}: ExportArgs): Promise<void> {
+  byResource,
+}: Props): Promise<void> {
+  // Create workbook
   const wb = new ExcelJS.Workbook();
   wb.creator = "Project Charter App";
   wb.created = new Date();
@@ -37,7 +40,7 @@ export async function exportProjectCharterExcel({
 
   const setRowStyles = (
     row: ExcelJS.Row,
-    opts: { bold?: boolean } = {}
+    opts: { bold?: boolean } = {},
   ): void => {
     row.alignment = { vertical: "middle", wrapText: true };
     if (opts.bold) row.font = { bold: true };
@@ -143,14 +146,16 @@ export async function exportProjectCharterExcel({
   const getFxName = (id: number | string | ""): string => {
     const numId = typeof id === "string" ? Number(id) : id;
     const found = resJson.find((f) => f.id === numId);
-    return found ? found.name : id?.toString() ?? "";
+    return found ? found.name : (id?.toString() ?? "");
   };
 
   const getAbapName = (id: number | string | ""): string => {
     const numId = typeof id === "string" ? Number(id) : id;
     const found = resJson.find((a) => a.id === numId);
-    return found ? found.name : id?.toString() ?? "";
+    return found ? found.name : (id?.toString() ?? "");
   };
+
+  const wbsStartRow = ws.rowCount + 1;
 
   wbs.forEach((r) => {
     const fxMandays = Number.isFinite(r.fxMandays) ? r.fxMandays : 0;
@@ -170,23 +175,15 @@ export async function exportProjectCharterExcel({
     setRowStyles(row);
   });
 
-  const fxTotal = wbs.reduce(
-    (s, r) => s + (Number.isFinite(r.fxMandays) ? r.fxMandays : 0),
-    0
-  );
-  const abapTotal = wbs.reduce(
-    (s, r) => s + (Number.isFinite(r.abapMandays) ? r.abapMandays : 0),
-    0
-  );
+  const wbsEndRow = ws.rowCount + 1;
 
-  addSpacer();
   const wbsTotal = ws.addRow([
     "TOTAL ESTIMATED EFFORT",
     "",
     "FX Total",
-    fxTotal,
+    { formula: `SUM(D${wbsStartRow}:D${wbsEndRow})`, result: 0 },
     "ABAP Total",
-    abapTotal,
+    { formula: `SUM(F${wbsStartRow}:F${wbsEndRow})`, result: 0 },
   ]);
   setRowStyles(wbsTotal, { bold: true });
   wbsTotal.getCell(4).numFmt = "0.00";
@@ -216,6 +213,65 @@ export async function exportProjectCharterExcel({
     setRowStyles(row);
   });
 
+  addSpacer(2);
+
+  // -----------------------------
+  // SECTION IV: Computation (A-E)
+  // -----------------------------
+  const compTitleRowNum = ws.rowCount + 1;
+  ws.mergeCells(`A${compTitleRowNum}:E${compTitleRowNum}`);
+  ws.getCell(`A${compTitleRowNum}`).value = "IV: Computation";
+  ws.getCell(`A${compTitleRowNum}`).font = { bold: true, size: 14 };
+  addSpacer();
+
+  const compHeader = ws.addRow([
+    "Resource",
+    "Title",
+    "Rate",
+    "Mandays",
+    "Total",
+  ]);
+  setRowStyles(compHeader, { bold: true });
+
+  const compStartRow = ws.rowCount + 1;
+
+  byResource.forEach((r) => {
+    const currentRow = ws.rowCount + 1;
+    const row = ws.addRow([
+      r.resourceName ?? "",
+      r.resourceTitle ?? "",
+      r.rate ?? "",
+      r.mandays ?? "",
+      r.subtotal ?? "",
+    ]);
+
+    // Apply number formats
+    row.getCell(3).numFmt = '"₱"#,##0.00'; // rate
+    row.getCell(4).numFmt = "0.00"; // mandays
+    row.getCell(5).numFmt = '"₱"#,##0.00'; // total
+
+    row.getCell(5).value = {
+      formula: `C${currentRow}*D${currentRow}`,
+      result: (r.rate ?? 0) * (r.mandays ?? 0),
+    };
+
+    setRowStyles(row);
+  });
+  const compEndRow = ws.rowCount;
+
+  const totalRow = ws.addRow([
+    "TOTAL",
+    "",
+    { formula: `SUM(C${compStartRow}:C${compEndRow})`, result: 0 },
+    { formula: `SUM(D${compStartRow}:D${compEndRow})`, result: 0 },
+    { formula: `SUM(E${compStartRow}:E${compEndRow})`, result: 0 },
+  ]);
+  setRowStyles(totalRow, { bold: true });
+
+  totalRow.getCell(3).numFmt = '"₱"#,##0.00';
+  totalRow.getCell(4).numFmt = "0.00";
+  totalRow.getCell(5).numFmt = '"₱"#,##0.00';
+
   // -----------------------------
   // BORDERS & STYLES
   // -----------------------------
@@ -227,7 +283,7 @@ export async function exportProjectCharterExcel({
   const addHeaderBorder = (
     row: ExcelJS.Row,
     fromCol: number,
-    toCol: number
+    toCol: number,
   ): void => {
     for (let c = fromCol; c <= toCol; c++) {
       const cell = ws.getRow(row.number).getCell(c);

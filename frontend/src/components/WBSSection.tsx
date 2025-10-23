@@ -42,23 +42,24 @@ export default function WBSSection({
   lockActivity = false,
 }: Props) {
   const isSingleRow = wbsRows.length <= 1;
+  const NONE_VALUE = "__none__";
 
   // ---------- derived states ----------
   const totals = useMemo(() => {
     const fx = wbsRows.reduce((sum, r) => sum + (Number(r.fxMandays) || 0), 0);
     const abap = wbsRows.reduce(
       (sum, r) => sum + (Number(r.abapMandays) || 0),
-      0
+      0,
     );
     return { fx, abap };
   }, [wbsRows]);
 
   const { fxResources, abapResources } = useMemo(() => {
     const fxResources = resources.filter(
-      (r) => r.resourceType?.name.toLowerCase() === "functional"
+      (r) => r.resourceType?.name.toLowerCase() === "functional",
     );
     const abapResources = resources.filter(
-      (r) => r.resourceType?.name.toLowerCase() === "technical"
+      (r) => r.resourceType?.name.toLowerCase() === "technical",
     );
     return { fxResources, abapResources };
   }, [resources]);
@@ -66,7 +67,7 @@ export default function WBSSection({
   // ----- actions -----
   function updateRow(id: string, patch: Partial<WbsRow>) {
     setWbsRows((rows) =>
-      rows.map((r) => (r.id === id ? { ...r, ...patch } : r))
+      rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
     );
   }
 
@@ -121,37 +122,29 @@ export default function WBSSection({
         </CardHeader>
 
         <CardContent className="p-0 sm:p-2 md:p-4">
-          <div
-            className="
-              relative w-full
-              overflow-x-auto overflow-y-auto
-              max-h-[60vh]
-              rounded-lg border border-border
-              scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent
-            "
-          >
-            <Table className="min-w-[768px] w-full text-sm align-middle border-collapse">
-              <TableHeader className="sticky top-0 bg-background z-10 border-b">
+          <div className="border-border scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent relative max-h-[60vh] w-full overflow-x-auto overflow-y-auto rounded-lg border">
+            <Table className="w-full min-w-[768px] border-collapse align-middle text-sm">
+              <TableHeader className="bg-background sticky top-0 z-10 border-b">
                 <TableRow>
-                  <TableHead className="w-[10%] text-left p-2 whitespace-nowrap">
+                  <TableHead className="w-[10%] p-2 text-left whitespace-nowrap">
                     WBS ID
                   </TableHead>
-                  <TableHead className="w-[25%] text-left p-2 whitespace-nowrap">
+                  <TableHead className="w-[25%] p-2 text-left whitespace-nowrap">
                     Activity
                   </TableHead>
-                  <TableHead className="w-[20%] text-left p-2 whitespace-nowrap">
+                  <TableHead className="w-[20%] p-2 text-left whitespace-nowrap">
                     FX Resource
                   </TableHead>
-                  <TableHead className="w-[10%] text-right p-2 whitespace-nowrap">
+                  <TableHead className="w-[10%] p-2 text-right whitespace-nowrap">
                     Mandays
                   </TableHead>
-                  <TableHead className="w-[20%] text-left p-2 whitespace-nowrap">
+                  <TableHead className="w-[20%] p-2 text-left whitespace-nowrap">
                     ABAP Resource
                   </TableHead>
-                  <TableHead className="w-[10%] text-right p-2 whitespace-nowrap">
+                  <TableHead className="w-[10%] p-2 text-right whitespace-nowrap">
                     Mandays
                   </TableHead>
-                  <TableHead className="w-[5%] text-right p-2 whitespace-nowrap">
+                  <TableHead className="w-[5%] p-2 text-right whitespace-nowrap">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -183,7 +176,7 @@ export default function WBSSection({
                           value={r.activityId ? String(r.activityId) : ""}
                           onValueChange={(val) => {
                             const opt = activities.find(
-                              (activity) => String(activity.id) === val
+                              (activity) => String(activity.id) === val,
                             );
                             if (!opt) return;
                             updateRow(r.id, {
@@ -228,7 +221,10 @@ export default function WBSSection({
                           disabled={lockActivity}
                           value={String(r.fxResourceId ?? "")}
                           onValueChange={(val) =>
-                            updateRow(r.id, { fxResourceId: val })
+                            // updateRow(r.id, { fxResourceId: val })
+                            updateRow(r.id, {
+                              fxResourceId: val === NONE_VALUE ? "" : val,
+                            })
                           }
                         >
                           <SelectTrigger className="w-full max-w-full truncate">
@@ -238,6 +234,9 @@ export default function WBSSection({
                             />
                           </SelectTrigger>
                           <SelectContent className="min-w-0">
+                            <SelectItem value={NONE_VALUE}>
+                              Select FX
+                            </SelectItem>
                             {fxResources.map((res) => (
                               <SelectItem key={res.id} value={String(res.id)}>
                                 <span className="block max-w-[360px] truncate">
@@ -263,7 +262,7 @@ export default function WBSSection({
                         value={r.fxMandays}
                         onChange={(e) =>
                           updateRow(r.id, {
-                            fxMandays: parse2(e.target.value) as number,
+                            fxMandays: Number(parse2(e.target.value) || 0),
                           })
                         }
                         onBlur={(e) =>
@@ -317,7 +316,7 @@ export default function WBSSection({
                         value={r.abapMandays}
                         onChange={(e) =>
                           updateRow(r.id, {
-                            abapMandays: parse2(e.target.value) as number,
+                            abapMandays: Number(parse2(e.target.value) || 0),
                           })
                         }
                         onBlur={(e) =>
@@ -371,7 +370,7 @@ export default function WBSSection({
                 ))}
               </TableBody>
 
-              <TableFooter className="sticky bottom-0 bg-background z-10 border-t">
+              <TableFooter className="bg-background sticky bottom-0 z-10 border-t">
                 <TableRow>
                   <TableCell colSpan={2}>
                     <strong>TOTAL ESTIMATED EFFORT</strong>

@@ -7,7 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/auth/Login";
 import ProjectsCreate from "./pages/ProjectsCreate";
 import ProjectsList from "./pages/ProjectsList";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "./layouts/ProtectedRoute";
 
 function App() {
   const token = localStorage.getItem("auth_token");

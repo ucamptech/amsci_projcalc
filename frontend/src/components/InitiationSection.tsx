@@ -28,7 +28,7 @@ export default function InitiationSection({
 
   // ----- actions -----
   function onChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) {
     const { name, value } = e.target;
     setProject((p) => ({ ...p, [name]: value }));
@@ -43,7 +43,7 @@ export default function InitiationSection({
           <CardTitle className="text-base">Project Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-1">
               <Label htmlFor="name">
                 Project Name <span className="text-red-500">*</span>
@@ -85,7 +85,7 @@ export default function InitiationSection({
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-1">
               <Label htmlFor="creationDate">Creation Date</Label>
               <Input
@@ -112,7 +112,7 @@ export default function InitiationSection({
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-1">
               <Label htmlFor="businessNeed">Business Need/Problem</Label>
               <Textarea
@@ -156,7 +156,7 @@ export default function InitiationSection({
             />
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-1">
               <Label htmlFor="deliverables">In-Scope Deliverables</Label>
               <Textarea

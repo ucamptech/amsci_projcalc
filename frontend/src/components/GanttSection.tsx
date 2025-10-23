@@ -19,7 +19,7 @@ export default function GanttSection({ wbsRows, resources }: Props) {
           <CardTitle className="text-base">Schedule Visualization</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-muted-foreground text-sm">
             No tasks to display. Add resources and mandays in the WBS.
           </div>
         </CardContent>

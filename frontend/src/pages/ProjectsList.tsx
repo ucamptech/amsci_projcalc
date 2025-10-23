@@ -174,13 +174,13 @@ export default function ProjectsList() {
 
       {/* Loading / Error */}
       {loading && (
-        <div className="mt-4 text-sm text-muted-foreground">
+        <div className="text-muted-foreground mt-4 text-sm">
           Loading projects…
         </div>
       )}
       {!!error && (
-        <div className="mt-4 flex items-center gap-2 rounded border border-destructive/30 bg-destructive/5 p-3 text-sm">
-          <span className="font-medium text-destructive">{error}</span>
+        <div className="border-destructive/30 bg-destructive/5 mt-4 flex items-center gap-2 rounded border p-3 text-sm">
+          <span className="text-destructive font-medium">{error}</span>
           <Button
             variant="outline"
             size="sm"
@@ -197,7 +197,7 @@ export default function ProjectsList() {
       )}
 
       {/* Table */}
-      <div className="rounded-md border mt-4">
+      <div className="mt-4 rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -239,7 +239,7 @@ export default function ProjectsList() {
               <TableRow>
                 <TableCell
                   colSpan={5}
-                  className="h-24 text-center text-sm text-muted-foreground"
+                  className="text-muted-foreground h-24 text-center text-sm"
                 >
                   {error ? "Failed to load projects." : "No projects found."}
                 </TableCell>
@@ -250,7 +250,7 @@ export default function ProjectsList() {
                   <TableCell className="font-medium">
                     <Link
                       to={`/projects/${p.id}`}
-                      className="text-blue-600 hover:underline hover:text-blue-800 transition-colors"
+                      className="text-blue-600 transition-colors hover:text-blue-800 hover:underline"
                     >
                       {p.name}
                     </Link>
@@ -267,8 +267,8 @@ export default function ProjectsList() {
       </div>
 
       {/* Pagination (server-side) */}
-      <div className="flex flex-col items-center justify-between gap-3 sm:flex-row mt-4">
-        <div className="text-sm text-muted-foreground">
+      <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+        <div className="text-muted-foreground text-sm">
           Showing <span className="font-medium">{showingFrom}</span> to{" "}
           <span className="font-medium">{showingTo}</span> of{" "}
           <span className="font-medium">{total}</span> projects

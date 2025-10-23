@@ -14,7 +14,7 @@ export interface ProjectInit {
 }
 
 export interface WbsRow {
-  id?: string;
+  id: string;
   activityId: string | number | "";
   wbsId: string;
   activity: string;
@@ -44,4 +44,20 @@ export interface ProjectPayload {
   deliverables: string;
   outOfScope: string;
   estimates: EstimatePayload[];
+}
+
+export interface SignersInit {
+  role: string;
+  name: string;
+  signature: string;
+  date: string;
+}
+
+export interface CostByResourceInit {
+  resourceId: number;
+  resourceName: string;
+  resourceTitle: string;
+  rate: number;
+  mandays: number;
+  subtotal: number;
 }
