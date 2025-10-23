@@ -181,7 +181,7 @@ export default function CostByResourceSection({
                             inputMode="decimal"
                             type="number"
                             min={0}
-                            step="0.01"
+                            step="1"
                             value={
                               Number.isFinite(r.rate) ? String(r.rate) : ""
                             }

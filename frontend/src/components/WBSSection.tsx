@@ -256,18 +256,18 @@ export default function WBSSection({
                         readOnly={lockActivity}
                         inputMode="decimal"
                         type="number"
-                        step="0.1"
+                        step="0.5"
                         min={0}
                         max={400}
                         value={r.fxMandays}
                         onChange={(e) =>
                           updateRow(r.id, {
-                            fxMandays: Number(parse2(e.target.value) || 0),
+                            fxMandays: parse2(e.target.value) as number,
                           })
                         }
                         onBlur={(e) =>
                           updateRow(r.id, {
-                            fxMandays: Number(parse2(e.target.value) || 0),
+                            fxMandays: parse2(e.target.value) as number,
                           })
                         }
                       />
@@ -316,18 +316,18 @@ export default function WBSSection({
                         readOnly={lockActivity}
                         inputMode="decimal"
                         type="number"
-                        step="0.1"
+                        step="0.5"
                         min={0}
                         max={400}
                         value={r.abapMandays}
                         onChange={(e) =>
                           updateRow(r.id, {
-                            abapMandays: Number(parse2(e.target.value) || 0),
+                            abapMandays: parse2(e.target.value) as number,
                           })
                         }
                         onBlur={(e) =>
                           updateRow(r.id, {
-                            abapMandays: Number(parse2(e.target.value) || 0),
+                            abapMandays: parse2(e.target.value) as number,
                           })
                         }
                       />
