@@ -283,7 +283,7 @@ export default function WBSSection({
                           onValueChange={(val) =>
                             // updateRow(r.id, { abapResourceId: val })
                             updateRow(r.id, {
-                              fxResourceId: val === NONE_VALUE ? "" : val,
+                              abapResourceId: val === NONE_VALUE ? "" : val,
                             })
                           }
                         >
