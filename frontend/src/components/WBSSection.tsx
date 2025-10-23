@@ -281,7 +281,10 @@ export default function WBSSection({
                           disabled={lockActivity}
                           value={String(r.abapResourceId ?? "")}
                           onValueChange={(val) =>
-                            updateRow(r.id, { abapResourceId: val })
+                            // updateRow(r.id, { abapResourceId: val })
+                            updateRow(r.id, {
+                              fxResourceId: val === NONE_VALUE ? "" : val,
+                            })
                           }
                         >
                           <SelectTrigger className="w-full max-w-full truncate">
@@ -291,6 +294,9 @@ export default function WBSSection({
                             />
                           </SelectTrigger>
                           <SelectContent className="min-w-0">
+                            <SelectItem value={NONE_VALUE}>
+                              Select ABAP
+                            </SelectItem>
                             {abapResources.map((res) => (
                               <SelectItem key={res.id} value={String(res.id)}>
                                 <span className="block max-w-[360px] truncate">

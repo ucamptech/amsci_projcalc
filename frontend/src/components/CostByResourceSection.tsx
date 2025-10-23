@@ -209,7 +209,8 @@ export default function CostByResourceSection({
                   </TableCell>
                   <TableCell colSpan={1}></TableCell>
                   <TableCell className="text-right font-bold">
-                    {totalRate.toFixed(2)}
+                    {/* {totalRate.toFixed(2)} */}
+                    {toMoney(totalRate)}
                   </TableCell>
                   <TableCell className="text-right font-bold">
                     {totalDays.toFixed(2)}
