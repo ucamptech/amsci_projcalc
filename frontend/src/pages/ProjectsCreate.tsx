@@ -25,6 +25,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import CostSection from "@/components/CostSection";
 import DashLayout from "@/layouts/DashLayout";
+import GanttSection from "@/components/GanttSection";
 import InitiationSection from "@/components/InitiationSection";
 import WBSSection from "@/components/WBSSection";
 import { api } from "@/api/api";
@@ -286,7 +287,7 @@ export default function ProjectsCreate() {
 
           <CostSection wbsRows={wbsRows} resources={resources} />
 
-          {/* <GanttSection wbsRows={wbsRows} resources={resources} /> */}
+          <GanttSection wbsRows={wbsRows} resources={resources} />
 
           {/* Actions */}
           <div className="flex items-center justify-end mb-3 mt-4">

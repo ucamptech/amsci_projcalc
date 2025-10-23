@@ -112,32 +112,34 @@ export default function InitiationSection({
             </div>
           </div>
 
-          <div className="grid gap-1">
-            <Label htmlFor="businessNeed">Business Need/Problem</Label>
-            <Textarea
-              id="businessNeed"
-              name="businessNeed"
-              placeholder="Clearly state the problem or opportunity the project addresses. (Why are we doing this?)"
-              value={project.businessNeed}
-              onChange={onChange}
-              rows={3}
-              maxLength={500}
-              disabled={lockActivity}
-            />
-          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid gap-1">
+              <Label htmlFor="businessNeed">Business Need/Problem</Label>
+              <Textarea
+                id="businessNeed"
+                name="businessNeed"
+                placeholder="Clearly state the problem or opportunity the project addresses. (Why are we doing this?)"
+                value={project.businessNeed}
+                onChange={onChange}
+                rows={3}
+                maxLength={500}
+                disabled={lockActivity}
+              />
+            </div>
 
-          <div className="grid gap-1">
-            <Label htmlFor="projectGoal">Project Goal</Label>
-            <Textarea
-              id="projectGoal"
-              name="projectGoal"
-              placeholder="A high-level statement of what the project will achieve. (e.g., To implement a new Data Extraction Tool.)"
-              value={project.projectGoal}
-              onChange={onChange}
-              rows={3}
-              maxLength={500}
-              disabled={lockActivity}
-            />
+            <div className="grid gap-1">
+              <Label htmlFor="projectGoal">Project Goal</Label>
+              <Textarea
+                id="projectGoal"
+                name="projectGoal"
+                placeholder="A high-level statement of what the project will achieve. (e.g., To implement a new Data Extraction Tool.)"
+                value={project.projectGoal}
+                onChange={onChange}
+                rows={3}
+                maxLength={500}
+                disabled={lockActivity}
+              />
+            </div>
           </div>
 
           <div className="grid gap-1">
