@@ -151,229 +151,244 @@ export default function WBSSection({
               </TableHeader>
 
               <TableBody>
-                {wbsRows.map((r, idx) => (
-                  <TableRow key={r.id}>
-                    {/* --- WBS ID (auto-fills from activity) --- */}
-                    <TableCell>
-                      <Input
-                        className="w-full"
-                        value={r.wbsId}
-                        readOnly={true}
-                        maxLength={10}
-                        onChange={(e) =>
-                          !lockActivity &&
-                          updateRow(r.id, { wbsId: e.target.value })
-                        }
-                      />
-                    </TableCell>
+                {wbsRows.map((r, idx) => {
+                  const fxEnabled = !!r.fxResourceId;
+                  const abapEnabled = !!r.abapResourceId;
 
-                    {/* --- Activity (Select) --- */}
-                    <TableCell className="overflow-hidden">
-                      <div className="grid gap-1">
-                        <Label className="sr-only">Activity</Label>
-                        <Select
-                          disabled={lockActivity}
-                          value={r.activityId ? String(r.activityId) : ""}
-                          onValueChange={(val) => {
-                            const opt = activities.find(
-                              (activity) => String(activity.id) === val,
-                            );
-                            if (!opt) return;
-                            updateRow(r.id, {
-                              activityId: opt.id,
-                              activity: opt.activity,
-                              wbsId: opt.wbsId,
-                            });
-                          }}
-                        >
-                          <SelectTrigger className="w-full max-w-full truncate">
-                            <SelectValue
-                              placeholder="Select activity"
-                              className="truncate"
-                            />
-                          </SelectTrigger>
-                          <SelectContent className="min-w-0">
-                            {activities.map((activity) => (
-                              <SelectItem
-                                key={activity.id}
-                                value={String(activity.id)}
-                              >
-                                <div className="flex items-center gap-2 truncate">
-                                  <span className="font-medium">
-                                    {activity.activity}
-                                  </span>
-                                  {/* <span className="text-muted-foreground">
+                  return (
+                    <TableRow key={r.id}>
+                      {/* --- WBS ID (auto-fills from activity) --- */}
+                      <TableCell>
+                        <Input
+                          className="w-full"
+                          value={r.wbsId}
+                          readOnly={true}
+                          maxLength={10}
+                          onChange={(e) =>
+                            !lockActivity &&
+                            updateRow(r.id, { wbsId: e.target.value })
+                          }
+                        />
+                      </TableCell>
+
+                      {/* --- Activity (Select) --- */}
+                      <TableCell className="overflow-hidden">
+                        <div className="grid gap-1">
+                          <Label className="sr-only">Activity</Label>
+                          <Select
+                            disabled={lockActivity}
+                            value={r.activityId ? String(r.activityId) : ""}
+                            onValueChange={(val) => {
+                              const opt = activities.find(
+                                (activity) => String(activity.id) === val,
+                              );
+                              if (!opt) return;
+                              updateRow(r.id, {
+                                activityId: opt.id,
+                                activity: opt.activity,
+                                wbsId: opt.wbsId,
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="w-full max-w-full truncate">
+                              <SelectValue
+                                placeholder="Select activity"
+                                className="truncate"
+                              />
+                            </SelectTrigger>
+                            <SelectContent className="min-w-0">
+                              {activities.map((activity) => (
+                                <SelectItem
+                                  key={activity.id}
+                                  value={String(activity.id)}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span className="font-medium">
+                                      {activity.activity}
+                                    </span>
+                                    {/* <span className="text-muted-foreground">
                                     ({activity.wbsId})
                                   </span> */}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TableCell>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </TableCell>
 
-                    {/* --- FX Resource --- */}
-                    <TableCell className="overflow-hidden">
-                      <div className="grid gap-1">
-                        <Label className="sr-only">FX Resource</Label>
-                        <Select
-                          disabled={lockActivity}
-                          value={String(r.fxResourceId ?? "")}
-                          onValueChange={(val) =>
-                            // updateRow(r.id, { fxResourceId: val })
+                      {/* --- FX Resource --- */}
+                      <TableCell className="overflow-hidden">
+                        <div className="grid gap-1">
+                          <Label className="sr-only">FX Resource</Label>
+                          <Select
+                            disabled={lockActivity}
+                            value={String(r.fxResourceId ?? "")}
+                            onValueChange={(val) => {
+                              if (val === NONE_VALUE) {
+                                updateRow(r.id, {
+                                  fxResourceId: "",
+                                  fxMandays: 0,
+                                });
+                              } else {
+                                updateRow(r.id, { fxResourceId: val });
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-full max-w-full truncate">
+                              <SelectValue
+                                placeholder="Select FX"
+                                className="truncate"
+                              />
+                            </SelectTrigger>
+                            <SelectContent className="min-w-0">
+                              <SelectItem value={NONE_VALUE}>
+                                Select FX
+                              </SelectItem>
+                              {fxResources.map((res) => (
+                                <SelectItem key={res.id} value={String(res.id)}>
+                                  <span className="block max-w-[360px] truncate">
+                                    {res.name} — {res.title}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </TableCell>
+
+                      {/* --- FX Mandays --- */}
+                      <TableCell className="text-right">
+                        <Input
+                          className="w-full text-right"
+                          readOnly={lockActivity}
+                          disabled={!fxEnabled}
+                          inputMode="decimal"
+                          type="number"
+                          step="0.5"
+                          min={0}
+                          max={400}
+                          value={r.fxMandays}
+                          onChange={(e) =>
                             updateRow(r.id, {
-                              fxResourceId: val === NONE_VALUE ? "" : val,
+                              fxMandays: parse2(e.target.value) as number,
                             })
                           }
-                        >
-                          <SelectTrigger className="w-full max-w-full truncate">
-                            <SelectValue
-                              placeholder="Select FX"
-                              className="truncate"
-                            />
-                          </SelectTrigger>
-                          <SelectContent className="min-w-0">
-                            <SelectItem value={NONE_VALUE}>
-                              Select FX
-                            </SelectItem>
-                            {fxResources.map((res) => (
-                              <SelectItem key={res.id} value={String(res.id)}>
-                                <span className="block max-w-[360px] truncate">
-                                  {res.name} — {res.title}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TableCell>
-
-                    {/* --- FX Mandays --- */}
-                    <TableCell className="text-right">
-                      <Input
-                        className="w-full text-right"
-                        readOnly={lockActivity}
-                        inputMode="decimal"
-                        type="number"
-                        step="0.5"
-                        min={0}
-                        max={400}
-                        value={r.fxMandays}
-                        onChange={(e) =>
-                          updateRow(r.id, {
-                            fxMandays: parse2(e.target.value) as number,
-                          })
-                        }
-                        onBlur={(e) =>
-                          updateRow(r.id, {
-                            fxMandays: parse2(e.target.value) as number,
-                          })
-                        }
-                      />
-                    </TableCell>
-
-                    {/* --- ABAP Resource --- */}
-                    <TableCell className="overflow-hidden">
-                      <div className="grid gap-1">
-                        <Label className="sr-only">ABAP Resource</Label>
-                        <Select
-                          disabled={lockActivity}
-                          value={String(r.abapResourceId ?? "")}
-                          onValueChange={(val) =>
-                            // updateRow(r.id, { abapResourceId: val })
+                          onBlur={(e) =>
                             updateRow(r.id, {
-                              abapResourceId: val === NONE_VALUE ? "" : val,
+                              fxMandays: parse2(e.target.value) as number,
                             })
                           }
-                        >
-                          <SelectTrigger className="w-full max-w-full truncate">
-                            <SelectValue
-                              placeholder="Select ABAP"
-                              className="truncate"
-                            />
-                          </SelectTrigger>
-                          <SelectContent className="min-w-0">
-                            <SelectItem value={NONE_VALUE}>
-                              Select ABAP
-                            </SelectItem>
-                            {abapResources.map((res) => (
-                              <SelectItem key={res.id} value={String(res.id)}>
-                                <span className="block max-w-[360px] truncate">
-                                  {res.name} — {res.title}
-                                </span>
+                        />
+                      </TableCell>
+
+                      {/* --- ABAP Resource --- */}
+                      <TableCell className="overflow-hidden">
+                        <div className="grid gap-1">
+                          <Label className="sr-only">ABAP Resource</Label>
+                          <Select
+                            disabled={lockActivity}
+                            value={String(r.abapResourceId ?? "")}
+                            onValueChange={(val) => {
+                              if (val === NONE_VALUE) {
+                                updateRow(r.id, {
+                                  abapResourceId: "",
+                                  abapMandays: 0,
+                                });
+                              } else {
+                                updateRow(r.id, { abapResourceId: val });
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-full max-w-full truncate">
+                              <SelectValue
+                                placeholder="Select ABAP"
+                                className="truncate"
+                              />
+                            </SelectTrigger>
+                            <SelectContent className="min-w-0">
+                              <SelectItem value={NONE_VALUE}>
+                                Select ABAP
                               </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TableCell>
+                              {abapResources.map((res) => (
+                                <SelectItem key={res.id} value={String(res.id)}>
+                                  <span className="block max-w-[360px] truncate">
+                                    {res.name} — {res.title}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </TableCell>
 
-                    {/* --- ABAP Mandays --- */}
-                    <TableCell className="text-right">
-                      <Input
-                        className="w-full text-right"
-                        readOnly={lockActivity}
-                        inputMode="decimal"
-                        type="number"
-                        step="0.5"
-                        min={0}
-                        max={400}
-                        value={r.abapMandays}
-                        onChange={(e) =>
-                          updateRow(r.id, {
-                            abapMandays: parse2(e.target.value) as number,
-                          })
-                        }
-                        onBlur={(e) =>
-                          updateRow(r.id, {
-                            abapMandays: parse2(e.target.value) as number,
-                          })
-                        }
-                      />
-                    </TableCell>
-
-                    {/* --- Actions --- */}
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="outline"
-                          onClick={() => moveRow(r.id, "up")}
-                          disabled={idx === 0}
-                          title="Move up"
-                        >
-                          <ArrowUp className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="outline"
-                          onClick={() => moveRow(r.id, "down")}
-                          disabled={idx === wbsRows.length - 1}
-                          title="Move down"
-                        >
-                          <ArrowDown className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="destructive"
-                          onClick={() => removeRow(r.id)}
-                          disabled={isSingleRow}
-                          title={
-                            isSingleRow
-                              ? "At least one row is required"
-                              : "Remove row"
+                      {/* --- ABAP Mandays --- */}
+                      <TableCell className="text-right">
+                        <Input
+                          className="w-full text-right"
+                          readOnly={lockActivity}
+                          disabled={!abapEnabled}
+                          inputMode="decimal"
+                          type="number"
+                          step="0.5"
+                          min={0}
+                          max={400}
+                          value={r.abapMandays}
+                          onChange={(e) =>
+                            updateRow(r.id, {
+                              abapMandays: parse2(e.target.value) as number,
+                            })
                           }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          onBlur={(e) =>
+                            updateRow(r.id, {
+                              abapMandays: parse2(e.target.value) as number,
+                            })
+                          }
+                        />
+                      </TableCell>
+
+                      {/* --- Actions --- */}
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            onClick={() => moveRow(r.id, "up")}
+                            disabled={idx === 0}
+                            title="Move up"
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            onClick={() => moveRow(r.id, "down")}
+                            disabled={idx === wbsRows.length - 1}
+                            title="Move down"
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="destructive"
+                            onClick={() => removeRow(r.id)}
+                            disabled={isSingleRow}
+                            title={
+                              isSingleRow
+                                ? "At least one row is required"
+                                : "Remove row"
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
 
               <TableFooter className="bg-background sticky bottom-0 z-10 border-t">

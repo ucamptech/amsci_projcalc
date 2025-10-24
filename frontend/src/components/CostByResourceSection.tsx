@@ -53,7 +53,7 @@ export default function CostByResourceSection({
     return map;
   }, [resources]);
 
-  // line items produced from rows
+  // line items based from rows
   const lines = useMemo<CostByResourceInit[]>(() => {
     const items: CostByResourceInit[] = [];
 
@@ -110,14 +110,29 @@ export default function CostByResourceSection({
         subtotal: 0,
       };
 
-      r.rate = li.rate; // latest rate wins
-      r.mandays += li.mandays; // accumulate
-      r.subtotal += li.subtotal; // accumulate
+      r.rate = li.rate;
+      r.mandays += li.mandays;
+      r.subtotal += li.subtotal;
 
       byResource.set(li.resourceId, r);
     }
 
     const list = Array.from(byResource.values());
+
+    const hasProjectManager = list.some(
+      (r) => r.resourceTitle?.toLowerCase() === "project manager",
+    );
+
+    if (!hasProjectManager) {
+      list.push({
+        resourceId: 0,
+        resourceName: "-",
+        resourceTitle: "Project Manager",
+        rate: 0,
+        mandays: 0,
+        subtotal: 0,
+      });
+    }
 
     let grandTotal = 0;
     let totalDays = 0;
@@ -141,11 +156,11 @@ export default function CostByResourceSection({
 
   return (
     <section className="mt-6">
-      <SectionTitle title="III. Computation" />
+      <SectionTitle title="III. Cost Computation" />
 
       <Card className="mt-2 gap-0">
         <CardHeader className="pb-0">
-          <CardTitle className="text-base">Breakdown by Resource</CardTitle>
+          <CardTitle className="text-base">By Resource</CardTitle>
         </CardHeader>
         <CardContent className="p-0 sm:p-2 md:p-4">
           <div className="border-border relative w-full overflow-x-auto rounded-lg border">

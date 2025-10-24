@@ -175,7 +175,7 @@ export async function exportProjectCharterExcel({
     setRowStyles(row);
   });
 
-  const wbsEndRow = ws.rowCount + 1;
+  const wbsEndRow = ws.rowCount;
 
   const wbsTotal = ws.addRow([
     "TOTAL ESTIMATED EFFORT",
