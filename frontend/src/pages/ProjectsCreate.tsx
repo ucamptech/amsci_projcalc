@@ -12,6 +12,9 @@ import {
   DEFAULT_ACTIVITIES,
   DEFAULT_RESOURCES,
   EMPTY_PROJECT,
+  LS_BYRES_KEY,
+  LS_PROJECT_KEY,
+  LS_WBS_KEY,
 } from "@/data/defaults";
 import {
   Dialog,
@@ -21,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -57,97 +60,146 @@ export default function ProjectsCreate() {
   const [editLocked, setEditLocked] = useState<boolean>(false);
 
   // ---------- FETCH ----------
-  useEffect(() => {
-    let mounted = true;
+  const retrieveFromAPI = useCallback(async (): Promise<void> => {
+    setLoading(true);
+    try {
+      const [activitiesRes, resourcesRes] = await Promise.all([
+        api.getActivities(),
+        api.getResources(),
+      ]);
 
-    async function retrieveFromAPI(): Promise<void> {
-      setLoading(true);
-      try {
-        const [activitiesRes, resourcesRes] = await Promise.all([
-          api.getActivities(),
-          api.getResources(),
-        ]);
+      const rows: WbsRow[] = (activitiesRes ?? []).map((a) => ({
+        id: cryptoId(),
+        activityId: a.id || 0,
+        wbsId: a.wbsId || "",
+        activity: a.activity || "New Activity",
+        level: 0,
+        fxResourceId: "",
+        fxMandays: 0,
+        abapResourceId: "",
+        abapMandays: 0,
+      }));
 
-        if (!mounted) return;
+      setWbsRows(rows);
+      setActivities(activitiesRes ?? []);
+      setResources(resourcesRes ?? []);
 
-        const rows: WbsRow[] = (activitiesRes ?? []).map((a) => ({
-          id: cryptoId(),
-          activityId: a.id || 0,
-          wbsId: a.wbsId || "",
-          activity: a.activity || "New Activity",
-          level: 0,
-          fxResourceId: "",
-          fxMandays: 0,
-          abapResourceId: "",
-          abapMandays: 0,
-        }));
+      if (!hasId) {
+        const savedProject = localStorage.getItem(LS_PROJECT_KEY);
+        const savedWbs = localStorage.getItem(LS_WBS_KEY);
+        const savedByRes = localStorage.getItem(LS_BYRES_KEY);
 
-        setWbsRows(rows);
-        setActivities(activitiesRes ?? []);
-        setResources(resourcesRes ?? []);
+        if (savedProject && savedWbs) {
+          const parsedProject = JSON.parse(savedProject) as ProjectInit;
+          let parsedWbs = JSON.parse(savedWbs) as WbsRow[];
 
-        if (hasId) {
-          const proj = await api.getProjectById(Number(id));
-          console.log("proj:", proj);
-          if (!mounted) return;
+          // sanitize draft against current activities/resources
+          const activityIds = new Set(
+            (activitiesRes ?? []).map((a) => String(a.id)),
+          );
+          const resourceIds = new Set(
+            (resourcesRes ?? []).map((r) => String(r.id)),
+          );
 
-          setProject({
-            name: proj.name ?? "",
-            sponsor: proj.sponsor ?? "",
-            manager: proj.manager ?? "",
-            businessNeed: proj.businessNeed ?? "",
-            projectGoal: proj.projectGoal ?? "",
-            measurableObjectives: proj.measurableObjectives ?? "",
-            deliverables: proj.deliverables ?? "",
-            outOfScope: proj.outOfScope ?? "",
+          parsedWbs = parsedWbs.map((r) => {
+            const fxOk = r.fxResourceId
+              ? resourceIds.has(String(r.fxResourceId))
+              : false;
+            const abapOk = r.abapResourceId
+              ? resourceIds.has(String(r.abapResourceId))
+              : false;
+            const actOk = r.activityId
+              ? activityIds.has(String(r.activityId))
+              : false;
+
+            return {
+              ...r,
+              // if resource is no longer present, clear mandays
+              fxResourceId: fxOk ? r.fxResourceId : "",
+              fxMandays: fxOk ? r.fxMandays : 0,
+              abapResourceId: abapOk ? r.abapResourceId : "",
+              abapMandays: abapOk ? r.abapMandays : 0,
+              // if activity missing, keep original
+              activityId: actOk ? r.activityId : 0,
+            };
           });
 
-          const mappedWBSRows = mapToWbsRows(proj.estimates ?? []);
-          console.log("mapped: ", mappedWBSRows);
-          setWbsRows(mappedWBSRows);
+          setProject(parsedProject);
+          setWbsRows(parsedWbs);
 
-          // Saved project: unlock editing as default
-          setEditLocked(false);
-        } else {
-          // New project: unlock editing
-          setEditLocked(false);
+          if (savedByRes) {
+            try {
+              const parsedByRes = JSON.parse(
+                savedByRes,
+              ) as CostByResourceInit[];
+              console.log("parsedByRes", parsedByRes);
+              setByResource(parsedByRes);
+            } catch {
+              setByResource([]);
+            }
+          }
+
+          setModal({
+            type: "success",
+            message: "Draft automatically loaded from your browser.",
+          });
         }
-      } catch (err) {
-        // Fallback defaults if API fails
-        const rows: WbsRow[] = DEFAULT_ACTIVITIES.map((a) => ({
-          id: cryptoId(),
-          activityId: a.id || 0,
-          wbsId: a.wbsId || "",
-          activity: a.activity || "New Activity",
-          level: 0,
-          fxId: 0,
-          fxResourceId: "",
-          fxMandays: 0,
-          abapId: 0,
-          abapResourceId: "",
-          abapMandays: 0,
-        }));
-
-        setWbsRows(rows);
-        setResources(DEFAULT_RESOURCES);
-
-        const message =
-          err instanceof Error ? err.message : "Server unavailable.";
-        if (message == "Row not found") {
-          navigate("/projects/create", { replace: true });
-        } else {
-          setModal({ type: "error", message: `Server offline. (${message})` });
-        }
-      } finally {
-        setLoading(false);
       }
-    }
 
-    void retrieveFromAPI();
-    return () => {
-      mounted = false;
-    };
+      if (hasId) {
+        const proj = await api.getProjectById(Number(id));
+        setProject({
+          name: proj.name ?? "",
+          sponsor: proj.sponsor ?? "",
+          manager: proj.manager ?? "",
+          businessNeed: proj.businessNeed ?? "",
+          projectGoal: proj.projectGoal ?? "",
+          measurableObjectives: proj.measurableObjectives ?? "",
+          deliverables: proj.deliverables ?? "",
+          outOfScope: proj.outOfScope ?? "",
+        });
+
+        const mappedWBSRows = mapToWbsRows(proj.estimates ?? []);
+        setWbsRows(mappedWBSRows);
+
+        setEditLocked(false);
+      } else {
+        setEditLocked(false);
+      }
+    } catch (err) {
+      // Fallback defaults if API fails
+      const rows: WbsRow[] = DEFAULT_ACTIVITIES.map((a) => ({
+        id: cryptoId(),
+        activityId: a.id || 0,
+        wbsId: a.wbsId || "",
+        activity: a.activity || "New Activity",
+        level: 0,
+        fxId: 0,
+        fxResourceId: "",
+        fxMandays: 0,
+        abapId: 0,
+        abapResourceId: "",
+        abapMandays: 0,
+      }));
+
+      setWbsRows(rows);
+      setResources(DEFAULT_RESOURCES);
+
+      const message =
+        err instanceof Error ? err.message : "Server unavailable.";
+      if (message === "Row not found") {
+        navigate("/projects/create", { replace: true });
+      } else {
+        setModal({ type: "error", message: `Server offline. (${message})` });
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [hasId, id, navigate]);
+
+  useEffect(() => {
+    void retrieveFromAPI();
+  }, [retrieveFromAPI]);
 
   // ---------- derived states ----------
   const canSubmit = useMemo(() => {
@@ -235,6 +287,63 @@ export default function ProjectsCreate() {
     }
   }
 
+  function onSaveLocal(): void {
+    try {
+      localStorage.setItem(LS_PROJECT_KEY, JSON.stringify(project));
+      localStorage.setItem(LS_WBS_KEY, JSON.stringify(wbsRows));
+      localStorage.setItem(LS_BYRES_KEY, JSON.stringify(byResource));
+      setModal({ type: "success", message: "Draft saved to your browser." });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unable to save the draft.";
+      setModal({ type: "error", message });
+    }
+  }
+
+  async function onResetLocal(): Promise<void> {
+    try {
+      localStorage.removeItem(LS_PROJECT_KEY);
+      localStorage.removeItem(LS_WBS_KEY);
+      localStorage.removeItem(LS_BYRES_KEY);
+
+      // reset inputs
+      setByResource([]);
+      setProject(EMPTY_PROJECT);
+
+      await retrieveFromAPI();
+
+      setModal({
+        type: "success",
+        message: "Inputs cleared and local draft removed.",
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unable to clear the draft.";
+      setModal({ type: "error", message });
+    }
+  }
+
+  function eqByRes(a: CostByResourceInit[], b: CostByResourceInit[]): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      const x = a[i],
+        y = b[i];
+      if (
+        x.resourceId !== y.resourceId ||
+        x.resourceName !== y.resourceName ||
+        x.resourceTitle !== y.resourceTitle ||
+        x.rate !== y.rate ||
+        x.mandays !== y.mandays ||
+        x.subtotal !== y.subtotal
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   // ---------- render ----------
   return (
     <DashLayout title={hasId ? "Project details" : "Create new project"}>
@@ -262,8 +371,9 @@ export default function ProjectsCreate() {
           <CostByResourceSection
             wbsRows={wbsRows}
             resources={resources}
+            byResource={byResource}
             onByResourceChange={(list) => {
-              setByResource(list);
+              setByResource((prev) => (eqByRes(prev, list) ? prev : list));
             }}
           />
 
@@ -288,6 +398,22 @@ export default function ProjectsCreate() {
                   </>
                 )}
               </Button> */}
+
+              <Button
+                variant="outline"
+                onClick={onSaveLocal}
+                title="Save to browser"
+              >
+                Save load
+              </Button>
+
+              <Button
+                variant="destructive"
+                onClick={onResetLocal}
+                title="Clear inputs and local draft"
+              >
+                Reset load
+              </Button>
 
               <Button variant="outline" onClick={onGenerateExcel}>
                 Generate Excel

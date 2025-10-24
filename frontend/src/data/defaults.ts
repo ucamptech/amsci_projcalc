@@ -83,3 +83,7 @@ export const DEFAULT_PROJECTS: ProjectInit[] = [
     outOfScope: "",
   },
 ];
+
+export const LS_PROJECT_KEY = "pc_project_draft";
+export const LS_WBS_KEY = "pc_wbs_draft";
+export const LS_BYRES_KEY = "pc_byresource_draft";
