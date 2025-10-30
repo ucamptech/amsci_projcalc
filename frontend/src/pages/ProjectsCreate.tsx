@@ -1,5 +1,5 @@
 import type { Activity, Resource } from "@/api/types";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Save } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type {
   CostByResourceInit,
@@ -380,42 +380,29 @@ export default function ProjectsCreate() {
           <GanttSection wbsRows={wbsRows} resources={resources} />
 
           {/* Actions */}
-          <div className="mt-4 mb-3 flex items-center justify-end">
+          <div className="mt-4 mb-3 flex items-center justify-between">
+            {/* Left group */}
             <div className="flex gap-2">
-              {/* <Button
-                variant={editLocked ? "secondary" : "outline"}
-                onClick={() => setEditLocked((v) => !v)}
-              >
-                {editLocked ? (
-                  <>
-                    <LockOpen className="mr-2 h-4 w-4" />
-                    Unlock Editing
-                  </>
-                ) : (
-                  <>
-                    <Lock className="mr-2 h-4 w-4" />
-                    Lock Editing
-                  </>
-                )}
-              </Button> */}
-
-              <Button
-                variant="outline"
-                onClick={onSaveLocal}
-                title="Save to browser"
-              >
-                Save load
-              </Button>
-
               <Button
                 variant="destructive"
                 onClick={onResetLocal}
                 title="Clear inputs and local draft"
               >
-                Reset load
+                Reset Load
               </Button>
+              <Button
+                variant="outline"
+                onClick={onSaveLocal}
+                title="Save to browser"
+              >
+                Save Load
+              </Button>
+            </div>
 
+            {/* Right group */}
+            <div className="flex gap-2">
               <Button variant="outline" onClick={onGenerateExcel}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Generate Excel
               </Button>
 
@@ -426,6 +413,7 @@ export default function ProjectsCreate() {
                   editLocked ? "Unlock editing to save changes." : undefined
                 }
               >
+                <Save className="mr-2 h-4 w-4" />
                 {submitBusy
                   ? hasId
                     ? "Saving…"

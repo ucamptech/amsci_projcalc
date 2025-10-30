@@ -13,4 +13,15 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+
+  /* Redirect any request starting with /api to your LM Studio server */
+  server: {
+    proxy: {
+      "/ai": {
+        target: "http://localhost:1234",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ai/, ""),
+      },
+    },
+  },
 });

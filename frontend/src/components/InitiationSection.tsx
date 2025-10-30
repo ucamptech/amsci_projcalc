@@ -1,11 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ProjectInit } from "@/data/types";
 import SectionTitle from "./SectionTitle";
 import { Textarea } from "@/components/ui/textarea";
-import { useEffect } from "react";
+import axios from "axios";
 
 type Props = {
   project: ProjectInit;
@@ -18,6 +20,9 @@ export default function InitiationSection({
   setProject,
   lockActivity = false,
 }: Props) {
+  const [fetchingObjectives, setFetchingObjectives] = useState(false);
+  const [objError, setObjError] = useState<string | null>(null);
+
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
@@ -33,6 +38,79 @@ export default function InitiationSection({
     const { name, value } = e.target;
     setProject((p) => ({ ...p, [name]: value }));
   }
+
+  async function fetchObjectivesFromApi() {
+    const start = Date.now();
+    console.log("Start time:", new Date(start).toLocaleTimeString());
+    setObjError(null);
+    setFetchingObjectives(true);
+
+    try {
+      const body = {
+        model: "qwen/qwen3-4b-2507",
+        input: `Write 3–5 SMART objectives (Specific, Measurable, Achievable, Relevant, Time-bound) based on the following details.
+        Project Name: ${project.name || "N/A"}
+        Business Need: ${project.businessNeed || "N/A"}
+        Project Goal: ${project.projectGoal || "N/A"}
+        Creation Date: ${project.creationDate || "today"} 
+        Respond with the objectives only and no intro or explanations.`,
+        messages: [
+          {
+            role: "user",
+            content:
+              // project.measurableObjectives ||
+              project.name ||
+              project.projectGoal ||
+              project.businessNeed ||
+              "N/A",
+          },
+        ],
+        stream: false,
+        max_tokens: 150,
+        temperature: 0.7,
+        top_p: 0.9,
+      };
+
+      console.log("body:", body);
+
+      const { data } = await axios.post("/ai/v1/responses", body, {
+        headers: { "Content-Type": "application/json" },
+        // timeout: 10000, // 10 seconds timeout
+      });
+
+      console.log("response data: ", data);
+
+      const text = data?.output?.[0]?.content?.[0]?.text || "";
+
+      if (!text.trim()) throw new Error("No objectives returned by the API.");
+
+      setProject((p) => ({
+        ...p,
+        measurableObjectives: text.trim(),
+      }));
+    } catch (err) {
+      console.error("Error fetching objectives:", err);
+      if (axios.isAxiosError(err)) {
+        setObjError(
+          err.response
+            ? `API error (${err.response.status}): ${err.response.statusText}`
+            : "Network error: please check your connection or server.",
+        );
+      } else {
+        setObjError("Failed to generate objectives. Please try again.");
+      }
+    } finally {
+      setFetchingObjectives(false);
+      const end = Date.now();
+      console.log("End time:", new Date(end).toLocaleTimeString());
+      console.log(`Elapsed time: ${(end - start) / 1000} seconds`);
+    }
+  }
+
+  const canSuggest =
+    (project.businessNeed?.trim()?.length ?? 0) > 0 ||
+    (project.projectGoal?.trim()?.length ?? 0) > 0 ||
+    (project.name?.trim()?.length ?? 0) > 0;
 
   // ---------- render ----------
   return (
@@ -143,7 +221,20 @@ export default function InitiationSection({
           </div>
 
           <div className="grid gap-1">
-            <Label htmlFor="measurableObjectives">Measurable Objectives</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="measurableObjectives">
+                Measurable Objectives
+              </Label>
+              <Button
+                variant="default"
+                type="button"
+                size="sm"
+                onClick={fetchObjectivesFromApi}
+                disabled={lockActivity || fetchingObjectives || !canSuggest}
+              >
+                {fetchingObjectives ? "Generating…" : "Generate Objectives"}
+              </Button>
+            </div>
             <Textarea
               id="measurableObjectives"
               name="measurableObjectives"
@@ -151,9 +242,23 @@ export default function InitiationSection({
               value={project.measurableObjectives}
               onChange={onChange}
               rows={3}
-              maxLength={500}
+              maxLength={1000}
               disabled={lockActivity}
             />
+            {objError ? (
+              <p className="mt-1 text-sm text-red-500">{objError}</p>
+            ) : null}
+            {!lockActivity &&
+            !fetchingObjectives &&
+            !objError &&
+            !canSuggest ? (
+              <p className="text-muted-foreground mt-1 text-xs">
+                Tip: Fill in <span className="font-medium">Project Name</span>,
+                <span className="font-medium"> Business Need</span>, or
+                <span className="font-medium"> Project Goal</span> to improve
+                the API suggestion.
+              </p>
+            ) : null}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
