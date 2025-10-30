@@ -47,7 +47,7 @@ export default function InitiationSection({
 
     try {
       const body = {
-        model: "qwen/qwen3-4b-2507",
+        model: "qwen/qwen3-vl-30b",
         input: `Write 3–5 SMART objectives (Specific, Measurable, Achievable, Relevant, Time-bound) based on the following details.
         Project Name: ${project.name || "N/A"}
         Business Need: ${project.businessNeed || "N/A"}
