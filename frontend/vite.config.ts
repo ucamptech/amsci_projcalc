@@ -14,11 +14,12 @@ export default defineConfig({
     },
   },
 
-  /* Redirect any request starting with /api to your LM Studio server */
+  /* Redirect any request starting with /ai to the LM Studio server */
   server: {
     proxy: {
       "/ai": {
-        target: "http://localhost:1234",
+        // target: "http://localhost:1234",
+        target: "http://13.250.82.143:4321",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ai/, ""),
       },

@@ -71,14 +71,14 @@ export default function InitiationSection({
         top_p: 0.9,
       };
 
-      console.log("body:", body);
+      console.log("Request body:", body);
 
       const { data } = await axios.post("/ai/v1/responses", body, {
         headers: { "Content-Type": "application/json" },
         // timeout: 10000, // 10 seconds timeout
       });
 
-      console.log("response data: ", data);
+      console.log("Response data: ", data);
 
       const text = data?.output?.[0]?.content?.[0]?.text || "";
 
