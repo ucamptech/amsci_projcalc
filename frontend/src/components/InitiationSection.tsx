@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ProjectInit } from "@/data/types";
 import SectionTitle from "./SectionTitle";
+import { Sparkles } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 type Props = {
@@ -225,6 +226,7 @@ export default function InitiationSection({
                 disabled={lockActivity || fetchingObjectives || !canSuggest}
                 title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
               >
+                <Sparkles className="mr-2 h-4 w-4" />
                 {fetchingObjectives ? "Generating…" : "Generate Objectives"}
               </Button>
             </div>
@@ -267,6 +269,7 @@ export default function InitiationSection({
                   disabled={lockActivity || fetchingDeliverables || !canSuggest}
                   title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
                 >
+                  <Sparkles className="mr-2 h-4 w-4" />
                   {fetchingDeliverables
                     ? "Generating…"
                     : "Generate Deliverables"}
@@ -299,6 +302,7 @@ export default function InitiationSection({
                   disabled={lockActivity || fetchingOos || !canSuggest}
                   title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
                 >
+                  <Sparkles className="mr-2 h-4 w-4" />
                   {fetchingOos ? "Generating…" : "Generate Out-of-Scope"}
                 </Button>
               </div>

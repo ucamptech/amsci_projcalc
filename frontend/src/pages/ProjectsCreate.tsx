@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import type { Activity, Resource } from "@/api/types";
 import { AlertCircle, CheckCircle2, FileSpreadsheet, Save } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -379,7 +377,7 @@ export default function ProjectsCreate() {
             }}
           />
 
-          {/* <GanttSection wbsRows={wbsRows} resources={resources} /> */}
+          <GanttSection project={project} wbsRows={wbsRows} />
 
           {/* Actions */}
           <div className="mt-4 mb-3 flex items-center justify-between">
