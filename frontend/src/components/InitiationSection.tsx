@@ -1,4 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  generateDeliverables,
+  generateObjectives,
+  generateOutOfScope,
+} from "@/api/api_ai";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -7,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import type { ProjectInit } from "@/data/types";
 import SectionTitle from "./SectionTitle";
 import { Textarea } from "@/components/ui/textarea";
-import axios from "axios";
 
 type Props = {
   project: ProjectInit;
@@ -21,7 +25,12 @@ export default function InitiationSection({
   lockActivity = false,
 }: Props) {
   const [fetchingObjectives, setFetchingObjectives] = useState(false);
+  const [fetchingDeliverables, setFetchingDeliverables] = useState(false);
+  const [fetchingOos, setFetchingOos] = useState(false);
+
   const [objError, setObjError] = useState<string | null>(null);
+  const [delivError, setDelivError] = useState<string | null>(null);
+  const [oosError, setOosError] = useState<string | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -39,71 +48,51 @@ export default function InitiationSection({
     setProject((p) => ({ ...p, [name]: value }));
   }
 
-  async function fetchObjectivesFromApi() {
-    const start = Date.now();
-    console.log("Start time:", new Date(start).toLocaleTimeString());
+  async function onGenerateObjectives() {
     setObjError(null);
     setFetchingObjectives(true);
-
+    const t0 = performance.now();
     try {
-      const body = {
-        model: "qwen/qwen3-vl-30b",
-        input: `Write 3–5 SMART objectives (Specific, Measurable, Achievable, Relevant, Time-bound) based on the following details.
-        Project Name: ${project.name || "N/A"}
-        Business Need: ${project.businessNeed || "N/A"}
-        Project Goal: ${project.projectGoal || "N/A"}
-        Creation Date: ${project.creationDate || "today"} 
-        Respond with the objectives only and no intro or explanations.`,
-        messages: [
-          {
-            role: "user",
-            content:
-              // project.measurableObjectives ||
-              project.name ||
-              project.projectGoal ||
-              project.businessNeed ||
-              "N/A",
-          },
-        ],
-        stream: false,
-        max_tokens: 150,
-        temperature: 0.7,
-        top_p: 0.9,
-      };
-
-      console.log("Request body:", body);
-
-      const { data } = await axios.post("/ai/v1/responses", body, {
-        headers: { "Content-Type": "application/json" },
-        // timeout: 10000, // 10 seconds timeout
-      });
-
-      console.log("Response data: ", data);
-
-      const text = data?.output?.[0]?.content?.[0]?.text || "";
-
-      if (!text.trim()) throw new Error("No objectives returned by the API.");
-
-      setProject((p) => ({
-        ...p,
-        measurableObjectives: text.trim(),
-      }));
+      const text = await generateObjectives(project);
+      setProject((p) => ({ ...p, measurableObjectives: text }));
     } catch (err) {
-      console.error("Error fetching objectives:", err);
-      if (axios.isAxiosError(err)) {
-        setObjError(
-          err.response
-            ? `API error (${err.response.status}): ${err.response.statusText}`
-            : "Network error: please check your connection or server.",
-        );
-      } else {
-        setObjError("Failed to generate objectives. Please try again.");
-      }
+      setObjError("Failed to generate objectives.");
+      console.error("Objectives API error:", err);
     } finally {
       setFetchingObjectives(false);
-      const end = Date.now();
-      console.log("End time:", new Date(end).toLocaleTimeString());
-      console.log(`Elapsed time: ${(end - start) / 1000} seconds`);
+      console.log(`Objectives took ${(performance.now() - t0) / 1000}s`);
+    }
+  }
+
+  async function onGenerateDeliverables() {
+    setDelivError(null);
+    setFetchingDeliverables(true);
+    const t0 = performance.now();
+    try {
+      const text = await generateDeliverables(project);
+      setProject((p) => ({ ...p, deliverables: text }));
+    } catch (err) {
+      setDelivError("Failed to generate deliverables.");
+      console.error("Deliverables API error:", err);
+    } finally {
+      setFetchingDeliverables(false);
+      console.log(`Deliverables took ${(performance.now() - t0) / 1000}s`);
+    }
+  }
+
+  async function onGenerateOutOfScope() {
+    setOosError(null);
+    setFetchingOos(true);
+    const t0 = performance.now();
+    try {
+      const text = await generateOutOfScope(project);
+      setProject((p) => ({ ...p, outOfScope: text }));
+    } catch (err) {
+      setOosError("Failed to generate out-of-scope items.");
+      console.error("Out-of-Scope API error:", err);
+    } finally {
+      setFetchingOos(false);
+      console.log(`Out-of-Scope took ${(performance.now() - t0) / 1000}s`);
     }
   }
 
@@ -220,6 +209,7 @@ export default function InitiationSection({
             </div>
           </div>
 
+          {/* Objectives with generator */}
           <div className="grid gap-1">
             <div className="flex items-center justify-between">
               <Label htmlFor="measurableObjectives">
@@ -229,8 +219,9 @@ export default function InitiationSection({
                 variant="default"
                 type="button"
                 size="sm"
-                onClick={fetchObjectivesFromApi}
+                onClick={onGenerateObjectives}
                 disabled={lockActivity || fetchingObjectives || !canSuggest}
+                title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
               >
                 {fetchingObjectives ? "Generating…" : "Generate Objectives"}
               </Button>
@@ -238,7 +229,7 @@ export default function InitiationSection({
             <Textarea
               id="measurableObjectives"
               name="measurableObjectives"
-              placeholder="List 3-5 SMART objectives. (e.g., Achieve 99% data accuracy on migrated records.)"
+              placeholder="List 3–5 SMART objectives. (e.g., Achieve 99% data accuracy on migrated records.)"
               value={project.measurableObjectives}
               onChange={onChange}
               rows={3}
@@ -256,27 +247,58 @@ export default function InitiationSection({
                 Tip: Fill in <span className="font-medium">Project Name</span>,
                 <span className="font-medium"> Business Need</span>, or
                 <span className="font-medium"> Project Goal</span> to improve
-                the API suggestion.
+                the AI suggestion.
               </p>
             ) : null}
           </div>
 
+          {/* Deliverables + Out of Scope with generators */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-1">
-              <Label htmlFor="deliverables">In-Scope Deliverables</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="deliverables">In-Scope Deliverables</Label>
+                <Button
+                  variant="outline"
+                  type="button"
+                  size="sm"
+                  onClick={onGenerateDeliverables}
+                  disabled={lockActivity || fetchingDeliverables || !canSuggest}
+                  title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
+                >
+                  {fetchingDeliverables
+                    ? "Generating…"
+                    : "Generate Deliverables"}
+                </Button>
+              </div>
               <Textarea
                 id="deliverables"
                 name="deliverables"
-                placeholder="Major, tangible outputs (e.g., Fully tested DM Tool; End-User Training Materials; Formal Data Migration Sign-off.)"
+                placeholder="Major, tangible outputs (e.g., Fully tested DM Tool; End-User Training Materials; Formal Sign-off.)"
                 value={project.deliverables}
                 onChange={onChange}
                 rows={3}
-                maxLength={500}
+                maxLength={1000}
                 disabled={lockActivity}
               />
+              {delivError ? (
+                <p className="mt-1 text-sm text-red-500">{delivError}</p>
+              ) : null}
             </div>
+
             <div className="grid gap-1">
-              <Label htmlFor="outOfScope">Out-of-Scope Items</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="outOfScope">Out-of-Scope Items</Label>
+                <Button
+                  variant="outline"
+                  type="button"
+                  size="sm"
+                  onClick={onGenerateOutOfScope}
+                  disabled={lockActivity || fetchingOos || !canSuggest}
+                  title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
+                >
+                  {fetchingOos ? "Generating…" : "Generate Out-of-Scope"}
+                </Button>
+              </div>
               <Textarea
                 id="outOfScope"
                 name="outOfScope"
@@ -284,9 +306,12 @@ export default function InitiationSection({
                 value={project.outOfScope}
                 onChange={onChange}
                 rows={3}
-                maxLength={500}
+                maxLength={1000}
                 disabled={lockActivity}
               />
+              {oosError ? (
+                <p className="mt-1 text-sm text-red-500">{oosError}</p>
+              ) : null}
             </div>
           </div>
         </CardContent>
