@@ -44,7 +44,7 @@ export async function generateObjectives(project: BaseProject) {
           Business Need: ${project.businessNeed || "N/A"}
           Project Goal: ${project.projectGoal || "N/A"}
           Creation Date: ${project.creationDate || "today"}
-          Respond with objectives only (bulleted or numbered), no intro or explanations.`;
+          Write concise bullet points (one per line). No intro text.`;
   const body = buildBody(project, instruction);
   return postPrompt(body);
 }

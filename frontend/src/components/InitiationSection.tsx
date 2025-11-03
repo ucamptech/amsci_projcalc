@@ -110,8 +110,8 @@ export default function InitiationSection({
           <CardTitle className="text-base">Project Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="grid gap-1">
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="col-span-2 grid gap-1">
               <Label htmlFor="name">
                 Project Name <span className="text-red-500">*</span>
               </Label>
@@ -126,6 +126,35 @@ export default function InitiationSection({
                 required
               />
             </div>
+
+            <div className="col-span-1 grid gap-1">
+              <Label htmlFor="creationDate">Creation Date</Label>
+              <Input
+                id="creationDate"
+                type="date"
+                name="creationDate"
+                value={project.creationDate ?? ""}
+                onChange={onChange}
+                max={today}
+                disabled={lockActivity}
+              />
+            </div>
+
+            <div className="col-span-1 grid gap-1">
+              <Label htmlFor="version">Version</Label>
+              <Input
+                id="version"
+                name="version"
+                placeholder="v1.0"
+                value={project.version}
+                onChange={onChange}
+                maxLength={10}
+                disabled={lockActivity}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-1">
               <Label htmlFor="sponsor">Project Sponsor</Label>
               <Input
@@ -147,33 +176,6 @@ export default function InitiationSection({
                 value={project.manager}
                 onChange={onChange}
                 maxLength={50}
-                disabled={lockActivity}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="grid gap-1">
-              <Label htmlFor="creationDate">Creation Date</Label>
-              <Input
-                id="creationDate"
-                type="date"
-                name="creationDate"
-                value={project.creationDate ?? ""}
-                onChange={onChange}
-                max={today}
-                disabled={lockActivity}
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label htmlFor="version">Version</Label>
-              <Input
-                id="version"
-                name="version"
-                placeholder="v1.0"
-                value={project.version}
-                onChange={onChange}
-                maxLength={10}
                 disabled={lockActivity}
               />
             </div>
@@ -237,7 +239,7 @@ export default function InitiationSection({
               disabled={lockActivity}
             />
             {objError ? (
-              <p className="mt-1 text-sm text-red-500">{objError}</p>
+              <p className="mt-1 text-xs text-red-500 italic">{objError}</p>
             ) : null}
             {!lockActivity &&
             !fetchingObjectives &&
@@ -252,13 +254,13 @@ export default function InitiationSection({
             ) : null}
           </div>
 
-          {/* Deliverables + Out of Scope with generators */}
           <div className="grid gap-4 md:grid-cols-2">
+            {/* Deliverables with generator */}
             <div className="grid gap-1">
               <div className="flex items-center justify-between">
                 <Label htmlFor="deliverables">In-Scope Deliverables</Label>
                 <Button
-                  variant="outline"
+                  variant="default"
                   type="button"
                   size="sm"
                   onClick={onGenerateDeliverables}
@@ -281,15 +283,16 @@ export default function InitiationSection({
                 disabled={lockActivity}
               />
               {delivError ? (
-                <p className="mt-1 text-sm text-red-500">{delivError}</p>
+                <p className="mt-1 text-xs text-red-500 italic">{delivError}</p>
               ) : null}
             </div>
 
+            {/* Out-of-Scope with generator */}
             <div className="grid gap-1">
               <div className="flex items-center justify-between">
                 <Label htmlFor="outOfScope">Out-of-Scope Items</Label>
                 <Button
-                  variant="outline"
+                  variant="default"
                   type="button"
                   size="sm"
                   onClick={onGenerateOutOfScope}
@@ -310,7 +313,7 @@ export default function InitiationSection({
                 disabled={lockActivity}
               />
               {oosError ? (
-                <p className="mt-1 text-sm text-red-500">{oosError}</p>
+                <p className="italics mt-1 text-xs text-red-500">{oosError}</p>
               ) : null}
             </div>
           </div>

@@ -393,7 +393,7 @@ export default function ProjectsCreate() {
                 Reset Load
               </Button>
               <Button
-                variant="outline"
+                variant="default"
                 onClick={onSaveLocal}
                 title="Save to browser"
               >
@@ -414,6 +414,7 @@ export default function ProjectsCreate() {
                 title={
                   editLocked ? "Unlock editing to save changes." : undefined
                 }
+                className="bg-green-600 text-white hover:bg-green-700"
               >
                 <Save className="mr-2 h-4 w-4" />
                 {submitBusy
