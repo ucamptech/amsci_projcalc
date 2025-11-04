@@ -1,9 +1,10 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Copy, Eye, Sparkles } from "lucide-react";
 import type { ProjectInit, WbsRow } from "@/data/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import SectionTitle from "./SectionTitle";
 import { generateGanttMermaid } from "@/api/api_ai";
 import mermaid from "mermaid";
 
@@ -150,19 +151,23 @@ export default function GanttSection({ project, wbsRows }: Props) {
   }
 
   return (
-    <Card className="mt-6">
-      <CardContent className="space-y-4 py-6">
-        <div className="flex items-center justify-between gap-4">
+    <section className="mt-6 gap-0">
+      <SectionTitle title="IV. Gantt chart" />
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
-            <h3 className="text-lg font-semibold">Gantt chart</h3>
             <p className="text-muted-foreground text-sm">
-              Generates and displays a Mermaid Gantt from the WBS and project
-              start date ({project.creationDate || "today"}).
+              Generates and displays a Mermaid Gantt based from the WBS and
+              Creation Date ({project.creationDate || "today"}).
             </p>
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={onGenerate} disabled={busy}>
+            <Button
+              onClick={onGenerate}
+              disabled={busy || taskCount === 0}
+              size="sm"
+            >
               <Sparkles className="mr-2 h-4 w-4" />
               {busy ? "Generating…" : "Generate Gantt"}
             </Button>
@@ -187,35 +192,38 @@ export default function GanttSection({ project, wbsRows }: Props) {
               {showRaw ? "Hide Code" : "View Code"}
             </Button>
           </div>
-        </div>
+        </CardHeader>
+        <CardContent className="space-y-2 py-2">
+          <div className="flex items-center justify-between gap-4"></div>
 
-        {error && (
-          <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-700">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-700">
+              {error}
+            </div>
+          )}
 
-        {!mermaidCode && !error && (
-          <div className="text-muted-foreground rounded-md border p-4 text-sm">
-            Mermaid Gantt chart will appear here after generation.
-          </div>
-        )}
+          {!mermaidCode && !error && (
+            <div className="text-muted-foreground rounded-md border p-4 text-sm">
+              Mermaid Gantt chart will appear here after generation.
+            </div>
+          )}
 
-        {mermaidCode && (
-          <div>
-            {!showRaw ? (
-              <div
-                ref={mermaidContainer}
-                className="overflow-x-auto rounded-md border bg-white p-4 dark:bg-neutral-900 [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-w-none"
-              />
-            ) : (
-              <pre className="bg-muted/50 overflow-auto rounded-md border p-4 text-sm whitespace-pre-wrap">
-                {`\`\`\`mermaid\n${mermaidCode}\n\`\`\``}
-              </pre>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {mermaidCode && (
+            <div>
+              {!showRaw ? (
+                <div
+                  ref={mermaidContainer}
+                  className="overflow-x-auto rounded-md border bg-white p-4 dark:bg-neutral-900 [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-w-none"
+                />
+              ) : (
+                <pre className="bg-muted/50 overflow-auto rounded-md border p-4 text-sm whitespace-pre-wrap">
+                  {`\`\`\`mermaid\n${mermaidCode}\n\`\`\``}
+                </pre>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </section>
   );
 }
