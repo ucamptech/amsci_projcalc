@@ -30,12 +30,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import CostByResourceSection from "@/components/CostByResourceSection";
 import DashLayout from "@/layouts/DashLayout";
+import { FileText } from "lucide-react";
 import GanttSection from "@/components/GanttSection";
 import InitiationSection from "@/components/InitiationSection";
 import WBSSection from "@/components/WBSSection";
 import { api } from "@/api/api";
 import { cryptoId } from "@/utils/number";
 import { exportProjectCharterExcel } from "@/utils/xlsxExport";
+import { exportProjectCharterPdfStructured } from "@/utils/pdfExport";
 import { mapToWbsRows } from "@/utils/mapToWBSRows";
 import useLocalStorage from "@/hooks/useLocalStorage";
 
@@ -217,6 +219,15 @@ export default function ProjectsCreate() {
     exportProjectCharterExcel({ project, wbs: wbsRows, signers, byResource });
   }
 
+  async function onGeneratePdf(): Promise<void> {
+    await exportProjectCharterPdfStructured({
+      project,
+      wbs: wbsRows,
+      byResource,
+      ganttSvgSelector: "#pc-gantt svg",
+    });
+  }
+
   function buildPayload(): ProjectPayload {
     const estimates: ProjectPayload["estimates"] = [];
     for (const r of wbsRows) {
@@ -354,30 +365,38 @@ export default function ProjectsCreate() {
       ) : (
         <>
           {/* Sections */}
-          <InitiationSection
-            project={project}
-            setProject={setProject}
-            lockActivity={editLocked}
-          />
+          <div id="pc-initiation">
+            <InitiationSection
+              project={project}
+              setProject={setProject}
+              lockActivity={editLocked}
+            />
+          </div>
 
-          <WBSSection
-            wbsRows={wbsRows}
-            setWbsRows={setWbsRows}
-            resources={resources}
-            activities={activities}
-            lockActivity={editLocked}
-          />
+          <div id="pc-wbs">
+            <WBSSection
+              wbsRows={wbsRows}
+              setWbsRows={setWbsRows}
+              resources={resources}
+              activities={activities}
+              lockActivity={editLocked}
+            />
+          </div>
 
-          <CostByResourceSection
-            wbsRows={wbsRows}
-            resources={resources}
-            byResource={byResource}
-            onByResourceChange={(list) => {
-              setByResource((prev) => (eqByRes(prev, list) ? prev : list));
-            }}
-          />
+          <div id="pc-cost">
+            <CostByResourceSection
+              wbsRows={wbsRows}
+              resources={resources}
+              byResource={byResource}
+              onByResourceChange={(list) => {
+                setByResource((prev) => (eqByRes(prev, list) ? prev : list));
+              }}
+            />
+          </div>
 
-          <GanttSection project={project} wbsRows={wbsRows} />
+          <div id="pc-gantt">
+            <GanttSection project={project} wbsRows={wbsRows} />
+          </div>
 
           {/* Actions */}
           <div className="mt-4 mb-3 flex items-center justify-between">
@@ -401,9 +420,14 @@ export default function ProjectsCreate() {
 
             {/* Right group */}
             <div className="flex gap-2">
+              <Button variant="outline" onClick={onGeneratePdf}>
+                <FileText className="mr-2 h-4 w-4" />
+                Export as PDF
+              </Button>
+
               <Button variant="outline" onClick={onGenerateExcel}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Generate Excel
+                Export as Excel
               </Button>
 
               <Button

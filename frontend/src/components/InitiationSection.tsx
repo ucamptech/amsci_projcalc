@@ -54,6 +54,7 @@ export default function InitiationSection({
     setFetchingObjectives(true);
     const t0 = performance.now();
     try {
+      console.log("Generate Objectives: ", t0);
       const text = await generateObjectives(project);
       setProject((p) => ({ ...p, measurableObjectives: text }));
     } catch (err) {
@@ -70,6 +71,7 @@ export default function InitiationSection({
     setFetchingDeliverables(true);
     const t0 = performance.now();
     try {
+      console.log("Generate Deliverables: ", t0);
       const text = await generateDeliverables(project);
       setProject((p) => ({ ...p, deliverables: text }));
     } catch (err) {
@@ -86,6 +88,7 @@ export default function InitiationSection({
     setFetchingOos(true);
     const t0 = performance.now();
     try {
+      console.log("Generate OutOfScope: ", t0);
       const text = await generateOutOfScope(project);
       setProject((p) => ({ ...p, outOfScope: text }));
     } catch (err) {
