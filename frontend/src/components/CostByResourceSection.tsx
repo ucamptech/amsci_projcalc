@@ -282,7 +282,7 @@ export default function CostByResourceSection({
                   <TableHead className="w-[20%]">Title</TableHead>
                   <TableHead className="w-[20%] text-right">Rate</TableHead>
                   <TableHead className="w-[10%] text-right">Mandays</TableHead>
-                  <TableHead className="w-[20%] text-right">Total</TableHead>
+                  <TableHead className="w-[20%] text-right">Subtotal</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

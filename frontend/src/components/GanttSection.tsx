@@ -14,6 +14,7 @@ type Props = {
     "name" | "businessNeed" | "projectGoal" | "creationDate"
   >;
   wbsRows: Pick<WbsRow, "activity" | "fxMandays" | "abapMandays">[];
+  onMermaidCodeChange?: (code: string) => void;
 };
 
 function extractMermaidBlock(text: string): string {
@@ -34,7 +35,11 @@ function currentTheme(): "default" | "dark" {
   return isDark ? "dark" : "default";
 }
 
-export default function GanttSection({ project, wbsRows }: Props) {
+export default function GanttSection({
+  project,
+  wbsRows,
+  onMermaidCodeChange,
+}: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mermaidCode, setMermaidCode] = useState<string>("");
@@ -75,6 +80,7 @@ export default function GanttSection({ project, wbsRows }: Props) {
       const id = "gantt_" + Date.now().toString(36);
       lastRenderId.current = id;
       const { svg } = await mermaid.render(id, mermaidCode);
+
       if (mermaidContainer.current) {
         mermaidContainer.current.innerHTML = svg;
       }
@@ -133,6 +139,7 @@ export default function GanttSection({ project, wbsRows }: Props) {
       const code = extractMermaidBlock(text);
 
       setMermaidCode(code);
+      onMermaidCodeChange?.(code);
       setShowRaw(false);
       initMermaid();
       void renderMermaid();
@@ -152,13 +159,13 @@ export default function GanttSection({ project, wbsRows }: Props) {
 
   return (
     <section className="mt-6 gap-0">
-      <SectionTitle title="IV. Gantt chart" />
+      <SectionTitle title="IV. Gantt Chart" />
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
             <p className="text-muted-foreground text-sm">
               Generates and displays a Mermaid Gantt based from the WBS and
-              Creation Date ({project.creationDate || "today"}).
+              Start Date ({project.creationDate || "today"}).
             </p>
           </div>
 

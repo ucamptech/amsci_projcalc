@@ -132,7 +132,7 @@ export default function InitiationSection({
             </div>
 
             <div className="col-span-1 grid gap-1">
-              <Label htmlFor="creationDate">Creation Date</Label>
+              <Label htmlFor="creationDate">Start Date</Label>
               <Input
                 id="creationDate"
                 type="date"

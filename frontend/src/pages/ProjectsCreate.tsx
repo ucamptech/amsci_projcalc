@@ -55,6 +55,7 @@ export default function ProjectsCreate() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [byResource, setByResource] = useState<CostByResourceInit[]>([]);
+  const [ganttMermaid, setGanttMermaid] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -224,7 +225,8 @@ export default function ProjectsCreate() {
       project,
       wbs: wbsRows,
       byResource,
-      ganttSvgSelector: "#pc-gantt svg",
+      ganttMermaidCode: ganttMermaid || null,
+      ganttSvgSelector: "#pc-gantt-svg",
     });
   }
 
@@ -395,7 +397,11 @@ export default function ProjectsCreate() {
           </div>
 
           <div id="pc-gantt">
-            <GanttSection project={project} wbsRows={wbsRows} />
+            <GanttSection
+              project={project}
+              wbsRows={wbsRows}
+              onMermaidCodeChange={setGanttMermaid}
+            />
           </div>
 
           {/* Actions */}
