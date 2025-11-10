@@ -1,8 +1,10 @@
+import type { Project } from "./types";
 import axios from "axios";
 
 const apiClient = axios.create({
   baseURL: "/", // same-origin; change if proxy differs
   headers: { "Content-Type": "application/json" },
+  timeout: 60000, // timeout after 1 min
 });
 
 type BaseProject = {
@@ -49,33 +51,93 @@ async function postPrompt(body: unknown): Promise<string> {
   return text.trim();
 }
 
-export async function generateObjectives(project: BaseProject) {
-  const instruction = `Write 3–5 SMART objectives (Specific, Measurable, Achievable, Relevant, Time-bound) based on:
-          Project Name: ${project.name || "N/A"}
-          Business Need: ${project.businessNeed || "N/A"}
-          Project Goal: ${project.projectGoal || "N/A"}
-          Creation Date: ${project.creationDate || "today"}
-          Write concise bullet points (one per line). No intro text.`;
+export async function generateObjectives(project: Project) {
+  // Build the instruction
+  const hasExisting =
+    project.measurableObjectives &&
+    project.measurableObjectives.trim().length > 0;
+
+  const instruction = hasExisting
+    ? `Improve and refine the following SMART objectives based on updated project details. Ensure they remain Specific, Measurable, Achievable, Relevant, and Time-bound.
+    
+    Existing Objectives:
+    ${project.measurableObjectives}
+
+    Project Details:
+    - Project Name: ${project.name || "N/A"}
+    - Business Need: ${project.businessNeed || "N/A"}
+    - Project Goal: ${project.projectGoal || "N/A"}
+    - Creation Date: ${project.creationDate || "today"}
+
+    Write concise bullet points (one per line). Do not include any intro text or explanations.`
+    : `Write 3–5 SMART objectives (Specific, Measurable, Achievable, Relevant, Time-bound) based on:
+    - Project Name: ${project.name || "N/A"}
+    - Business Need: ${project.businessNeed || "N/A"}
+    - Project Goal: ${project.projectGoal || "N/A"}
+    - Creation Date: ${project.creationDate || "today"}
+
+    Write concise bullet points (one per line). Do not include any intro text or explanations.`;
+
   const body = buildBody(project, instruction);
   return postPrompt(body);
 }
 
-export async function generateDeliverables(project: BaseProject) {
-  const instruction = `List 3–5 major in-scope, tangible deliverables based on:
-          Project Name: ${project.name || "N/A"}
-          Business Need: ${project.businessNeed || "N/A"}
-          Project Goal: ${project.projectGoal || "N/A"}
-          Write concise bullet points (one per line). No intro text.`;
+export async function generateDeliverables(project: Project) {
+  // Build the instruction
+  const hasExisting =
+    project.deliverables && project.deliverables.trim().length > 0;
+
+  const instruction = hasExisting
+    ? `Improve and refine the following list of major in-scope, tangible deliverables based on updated project details.
+    
+    Existing Deliverables:
+    ${project.deliverables}
+
+    Project Details:
+    - Project Name: ${project.name || "N/A"}
+    - Business Need: ${project.businessNeed || "N/A"}
+    - Project Goal: ${project.projectGoal || "N/A"}
+    - Creation Date: ${project.creationDate || "today"}
+
+    Write concise bullet points (one per line). Do not include any intro text or explanations.`
+    : `List 3–5 major in-scope, tangible deliverables based on:
+    - Project Name: ${project.name || "N/A"}
+    - Business Need: ${project.businessNeed || "N/A"}
+    - Project Goal: ${project.projectGoal || "N/A"}
+    - Creation Date: ${project.creationDate || "today"}
+
+    Write concise bullet points (one per line). Do not include any intro text or explanations.`;
+
   const body = buildBody(project, instruction);
   return postPrompt(body);
 }
 
-export async function generateOutOfScope(project: BaseProject) {
-  const instruction = `List 3-5 out-of-scope items to prevent scope creep, based on:
-          Project Name: ${project.name || "N/A"}
-          Business Need: ${project.businessNeed || "N/A"}
-          Project Goal: ${project.projectGoal || "N/A"}
-          Write concise bullet points (one per line). No intro text.`;
+export async function generateOutOfScope(project: Project) {
+  // Build the instruction
+  const hasExisting =
+    project.outOfScope && project.outOfScope.trim().length > 0;
+
+  const instruction = hasExisting
+    ? `Improve and refine the following out-of-scope items to prevent scope creep, based on updated project details.
+    
+    Existing Out-of-Scope Items:
+    ${project.outOfScope}
+
+    Project Details:
+    - Project Name: ${project.name || "N/A"}
+    - Business Need: ${project.businessNeed || "N/A"}
+    - Project Goal: ${project.projectGoal || "N/A"}
+    - Creation Date: ${project.creationDate || "today"}
+
+    Write concise bullet points (one per line). Do not include any intro text or explanations.`
+    : `List 3–5 out-of-scope items to prevent scope creep, based on:
+    - Project Name: ${project.name || "N/A"}
+    - Business Need: ${project.businessNeed || "N/A"}
+    - Project Goal: ${project.projectGoal || "N/A"}
+    - Creation Date: ${project.creationDate || "today"}
+
+    Write concise bullet points (one per line). Do not include any intro text or explanations.`;
+
   const body = buildBody(project, instruction);
   return postPrompt(body);
 }

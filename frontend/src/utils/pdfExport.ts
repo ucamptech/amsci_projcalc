@@ -3,6 +3,10 @@ import mermaid from "mermaid";
 import jsPDF from "jspdf";
 import autoTable, { type RowInput } from "jspdf-autotable";
 
+/* ---------- Company Branding ---------- */
+const COMPANY_NAME = "ACEA Managed Services and Consulting, Inc.";
+const LOGO_URL = "/amsci-logo.png";
+
 export type MinimalProject = {
   name?: string;
   sponsor?: string;
@@ -40,6 +44,16 @@ function fmt(n: number) {
   }).format(n);
 }
 
+async function urlToDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return await new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
 export async function exportProjectCharterPdfStructured(opts: {
   filename?: string;
   project: MinimalProject;
@@ -60,11 +74,91 @@ export async function exportProjectCharterPdfStructured(opts: {
     ganttMermaidCode = null,
   } = opts;
 
-  const pdf = new jsPDF({ unit: "pt", format: "letter", orientation: "p" });
+  const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "p" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 36;
-  let y = margin;
+
+  /* ---------------- Header / Footer ---------------- */
+  const headerHeight = 60;
+  const headerPaddingX = 16;
+  const headerBg = [12, 14, 18] as const;
+
+  const footerHeight = 24;
+  const footerY = (ph: number) => ph - footerHeight + 8;
+
+  const generatedOn = new Date().toLocaleString();
+
+  let logoDataUrl: string | null = null;
+  try {
+    logoDataUrl = await urlToDataUrl(LOGO_URL);
+  } catch (err) {
+    console.warn(err);
+  }
+
+  function drawHeader(currentPdf: jsPDF) {
+    const pw = currentPdf.internal.pageSize.getWidth();
+    // band
+    currentPdf.setFillColor(headerBg[0], headerBg[1], headerBg[2]);
+    currentPdf.rect(0, 0, pw, headerHeight, "F");
+
+    // logo
+    if (logoDataUrl) {
+      try {
+        const props = currentPdf.getImageProperties(logoDataUrl);
+        const maxLogoH = headerHeight - 20;
+        const maxLogoW = 160;
+        const scale = Math.min(maxLogoW / props.width, maxLogoH / props.height);
+        const w = props.width * scale;
+        const h = props.height * scale;
+        currentPdf.addImage(
+          logoDataUrl,
+          "PNG",
+          headerPaddingX,
+          (headerHeight - h) / 2,
+          w,
+          h,
+          undefined,
+          "FAST",
+        );
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+
+    // company name (right)
+    currentPdf.setTextColor(255);
+    currentPdf.setFont("helvetica", "bold");
+    currentPdf.setFontSize(12);
+    currentPdf.text(COMPANY_NAME, pw - headerPaddingX, headerHeight / 2 + 4, {
+      align: "right",
+    });
+
+    currentPdf.setTextColor(0);
+  }
+
+  function drawFooter(currentPdf: jsPDF, pageIndex: number, pageCount: number) {
+    const pw = currentPdf.internal.pageSize.getWidth();
+    const ph = currentPdf.internal.pageSize.getHeight();
+
+    // text
+    currentPdf.setFont("helvetica", "normal");
+    currentPdf.setFontSize(9);
+    currentPdf.setTextColor(80);
+    currentPdf.text(`Generated on: ${generatedOn}`, margin, footerY(ph));
+    currentPdf.text(
+      `Page ${pageIndex} of ${pageCount}`,
+      pw - margin,
+      footerY(ph),
+      {
+        align: "right",
+      },
+    );
+    currentPdf.setTextColor(0);
+  }
+
+  // Start layout below the header
+  let y = margin + headerHeight;
 
   /* ---------- Title ---------- */
   pdf.setFont("helvetica", "bold");
@@ -89,6 +183,10 @@ export async function exportProjectCharterPdfStructured(opts: {
   y += 8;
 
   /* ---------- Section I: Project Information ---------- */
+  if (y > pageHeight - margin - 80) {
+    pdf.addPage();
+    y = margin + headerHeight;
+  }
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(12);
   pdf.text("I. Project Information", margin, y);
@@ -122,7 +220,7 @@ export async function exportProjectCharterPdfStructured(opts: {
 
     if (y + blockHeight > pageHeight - margin) {
       pdf.addPage();
-      y = margin;
+      y = margin + headerHeight;
     }
 
     lines.forEach((line) => {
@@ -136,7 +234,7 @@ export async function exportProjectCharterPdfStructured(opts: {
   /* ---------- Section II: WBS Table ---------- */
   if (y > pageHeight - margin - 80) {
     pdf.addPage();
-    y = margin;
+    y = margin + headerHeight;
   }
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(12);
@@ -197,7 +295,7 @@ export async function exportProjectCharterPdfStructured(opts: {
   /* ---------- Section III: Cost Computation ---------- */
   if (y > pageHeight - margin - 80) {
     pdf.addPage();
-    y = margin;
+    y = margin + headerHeight;
   }
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(12);
@@ -224,7 +322,6 @@ export async function exportProjectCharterPdfStructured(opts: {
   const totalRows: RowInput[] = [
     ["Total", "", fmt(totalRate), String(totalMandays), fmt(totalCost)],
   ];
-
   const bodyWithTotals = [...costBody, ...totalRows];
 
   autoTable(pdf, {
@@ -234,23 +331,10 @@ export async function exportProjectCharterPdfStructured(opts: {
     body: bodyWithTotals,
     styles: { font: "helvetica", fontSize: 10, cellPadding: 4 },
     headStyles: { fillColor: [33, 37, 41], textColor: 255 },
-    // foot: [["", "Total", fmt(totalRate), String(totalMandays), fmt(totalCost)]],
-    // foot: [
-    //   ["", "", "", "Total Rate", fmt(totalRate)],
-    //   ["", "", "", "Total Mandays", String(totalMandays)],
-    //   ["", "", "", "Total Cost", fmt(totalCost)],
-    // ],
-    // footStyles: {
-    //   fillColor: [255, 255, 255],
-    //   textColor: [0, 0, 0],
-    //   fontStyle: "bold",
-    // },
     didParseCell(data) {
       const isBody = data.section === "body";
       const isTotalRow = isBody && data.row.index >= costBody.length;
-      if (isTotalRow) {
-        data.cell.styles.fontStyle = "bold";
-      }
+      if (isTotalRow) data.cell.styles.fontStyle = "bold";
     },
     columnStyles: {
       0: { cellWidth: 160 },
@@ -266,7 +350,7 @@ export async function exportProjectCharterPdfStructured(opts: {
   /* ---------- Section IV: Gantt Chart (Mermaid) ---------- */
   if (y > pageHeight - margin - 80) {
     pdf.addPage();
-    y = margin;
+    y = margin + headerHeight;
   }
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(12);
@@ -357,7 +441,6 @@ export async function exportProjectCharterPdfStructured(opts: {
     );
     svgText = svg;
   } else {
-    // Fallback: query a live SVG in the DOM if there is one
     const node = document.querySelector<SVGSVGElement>(ganttSvgSelector);
     if (node) svgText = node.outerHTML;
   }
@@ -365,11 +448,8 @@ export async function exportProjectCharterPdfStructured(opts: {
   if (svgText) {
     const dataUrl = await svgTextToPngDataUrl(svgText, 2);
     const imgProps = pdf.getImageProperties(dataUrl);
-
-    const pageWidth = pdf.internal.pageSize.getWidth();
     const availableW = pageWidth - 2 * margin;
     const scale = availableW / imgProps.width;
-
     pdf.addImage(
       dataUrl,
       "PNG",
@@ -380,12 +460,55 @@ export async function exportProjectCharterPdfStructured(opts: {
       undefined,
       "FAST",
     );
+    y += imgProps.height * scale + 20;
   } else {
     pdf.setFont("helvetica", "italic");
     pdf.setTextColor(100);
     pdf.setFontSize(10);
     pdf.text("Gantt diagram not available.", margin, y + 10);
     pdf.setTextColor(0);
+    y += 28;
+  }
+
+  /* ---------- Section V: Authorization ---------- */
+  y += 20;
+
+  if (y > pageHeight - margin - 80) {
+    pdf.addPage();
+    y = margin + headerHeight;
+  }
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(12);
+  pdf.text("V. Authorization", margin, y);
+  y += 10;
+
+  const authRows: RowInput[] = [
+    ["Project Management Office", "", "", ""],
+    ["Project Sponsor", "", "", ""],
+  ];
+
+  autoTable(pdf, {
+    startY: y + 8,
+    margin: { left: margin, right: margin },
+    head: [["Role", "Name", "Signature", "Date"]],
+    body: authRows,
+    styles: { font: "helvetica", fontSize: 10, cellPadding: 4 },
+    headStyles: { fillColor: [33, 37, 41], textColor: 255 },
+    columnStyles: {
+      0: { cellWidth: 160 },
+      1: { cellWidth: 140 },
+      2: { cellWidth: 140 },
+      3: { cellWidth: 90, halign: "center" },
+    },
+  });
+  y = (pdf as any).lastAutoTable.finalY + 16;
+
+  /* ---------- Paint header & footer on all pages ---------- */
+  const pageCount = pdf.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    pdf.setPage(i);
+    drawHeader(pdf);
+    drawFooter(pdf, i, pageCount);
   }
 
   pdf.save(filename);

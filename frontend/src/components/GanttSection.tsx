@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import SectionTitle from "./SectionTitle";
 import { generateGanttMermaid } from "@/api/api_ai";
 import mermaid from "mermaid";
+import { useBusyOverlay } from "./BusyOverlayProvider";
 
 type Props = {
   project: Pick<
@@ -40,6 +41,8 @@ export default function GanttSection({
   wbsRows,
   onMermaidCodeChange,
 }: Props) {
+  const { begin, end } = useBusyOverlay();
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mermaidCode, setMermaidCode] = useState<string>("");
@@ -122,6 +125,7 @@ export default function GanttSection({
   async function onGenerate() {
     setBusy(true);
     setError(null);
+    begin();
     try {
       const text = await generateGanttMermaid(
         {
@@ -146,9 +150,11 @@ export default function GanttSection({
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Failed to generate Gantt chart.";
-      setError(msg);
+      setError("Failed to generate Gantt chart.");
+      console.error("Gantt chart API error:", msg);
     } finally {
       setBusy(false);
+      end();
     }
   }
 

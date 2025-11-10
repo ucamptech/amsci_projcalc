@@ -30,7 +30,7 @@ export default function Sidebar({
   isMobile?: boolean;
 }) {
   const effectiveCollapsed = isMobile ? false : collapsed;
-  const MOCK_USER = { name: "Percy Jackson", email: "pjackson@gmail.com" };
+  const MOCK_USER = { name: "Percy Jackson", email: "test@example.com" };
   const navigate = useNavigate();
 
   const getInitials = (name: string) =>
@@ -53,13 +53,13 @@ export default function Sidebar({
       className={[
         "sticky top-0 h-dvh",
         "overflow-hidden",
-        "flex flex-col border-r bg-card transition-all duration-200",
+        "bg-card flex flex-col border-r transition-all duration-200",
         isMobile ? "w-full" : effectiveCollapsed ? "w-20" : "w-64",
         isMobile ? "" : "hidden md:flex",
       ].join(" ")}
     >
       {/* ------ Header  ------ */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b">
+      <div className="flex items-center gap-3 border-b px-4 py-4">
         <button
           type="button"
           onClick={() => {
@@ -69,7 +69,7 @@ export default function Sidebar({
             effectiveCollapsed ? "Expand sidebar" : "Collapse sidebar"
           }
           title={effectiveCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground focus:outline-none focus:ring-2 focus:ring-ring/60 focus:ring-offset-2 focus:ring-offset-card transition-transform active:scale-[0.98]"
+          className="bg-primary text-primary-foreground focus:ring-ring/60 focus:ring-offset-card flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-[0.98]"
         >
           <svg
             viewBox="0 0 24 24"
@@ -84,8 +84,8 @@ export default function Sidebar({
 
         {!effectiveCollapsed && (
           <div className="min-w-0">
-            <p className="font-semibold leading-tight truncate">JANUS</p>
-            <p className="text-xs text-muted-foreground leading-tight truncate">
+            <p className="truncate leading-tight font-semibold">JANUS</p>
+            <p className="text-muted-foreground truncate text-xs leading-tight">
               Project Charter App
             </p>
           </div>
@@ -134,7 +134,7 @@ export default function Sidebar({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="w-full flex items-center gap-3 rounded-md hover:bg-muted/60 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-ring/60"
+              className="hover:bg-muted/60 focus:ring-ring/60 flex w-full items-center gap-3 rounded-md px-2 py-2 focus:ring-2 focus:outline-none"
               aria-label="Open user menu"
             >
               <Avatar className="h-9 w-9 shrink-0">
@@ -145,10 +145,10 @@ export default function Sidebar({
 
               {!effectiveCollapsed && (
                 <div className="min-w-0 text-left">
-                  <p className="text-sm font-medium leading-tight truncate">
+                  <p className="truncate text-sm leading-tight font-medium">
                     {MOCK_USER.name}
                   </p>
-                  <p className="text-xs text-muted-foreground leading-tight truncate">
+                  <p className="text-muted-foreground truncate text-xs leading-tight">
                     {MOCK_USER.email}
                   </p>
                 </div>
@@ -186,7 +186,7 @@ export default function Sidebar({
             </DropdownMenuItem> */}
             <DropdownMenuItem
               onClick={handleLogout}
-              className="flex items-center gap-2 text-red-600 cursor-pointer"
+              className="flex cursor-pointer items-center gap-2 text-red-600"
             >
               <LogOut className="h-4 w-4" />
               <span>Sign out</span>
