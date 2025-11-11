@@ -82,7 +82,7 @@ export async function exportProjectCharterPdfStructured(opts: {
   /* ---------------- Header / Footer ---------------- */
   const headerHeight = 60;
   const headerPaddingX = 16;
-  const headerBg = [12, 14, 18] as const;
+  const headerBg = [60, 63, 65] as const;
 
   const footerHeight = 24;
   const footerY = (ph: number) => ph - footerHeight + 8;
@@ -160,7 +160,7 @@ export async function exportProjectCharterPdfStructured(opts: {
   // Start layout below the header
   let y = margin + headerHeight;
 
-  /* ---------- Title ---------- */
+  /* ---------- Project name ---------- */
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(14);
   pdf.text(project.name || "Project Charter", margin, y);
@@ -276,7 +276,7 @@ export async function exportProjectCharterPdfStructured(opts: {
       cellPadding: 4,
       overflow: "linebreak",
     },
-    headStyles: { fillColor: [33, 37, 41], textColor: 255 },
+    headStyles: { fillColor: [60, 63, 65], textColor: 255 },
     columnStyles: {
       0: { cellWidth: 80 },
       1: { cellWidth: 240 },
@@ -330,7 +330,7 @@ export async function exportProjectCharterPdfStructured(opts: {
     head: [["Resource", "Title", "Rate", "Mandays", "Subtotal"]],
     body: bodyWithTotals,
     styles: { font: "helvetica", fontSize: 10, cellPadding: 4 },
-    headStyles: { fillColor: [33, 37, 41], textColor: 255 },
+    headStyles: { fillColor: [60, 63, 65], textColor: 255 },
     didParseCell(data) {
       const isBody = data.section === "body";
       const isTotalRow = isBody && data.row.index >= costBody.length;
@@ -427,11 +427,26 @@ export async function exportProjectCharterPdfStructured(opts: {
 
   if (ganttMermaidCode && ganttMermaidCode.trim().length > 0) {
     // Initialize Mermaid
+    // mermaid.initialize({
+    //   startOnLoad: false,
+    //   securityLevel: "loose",
+    //   theme: "default",
+    //   gantt: { axisFormat: "%b %d" },
+    // });
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "loose",
-      theme: "default",
-      gantt: { axisFormat: "%b %d" },
+      theme: "neutral",
+      gantt: {
+        axisFormat: "%b %d",
+        barHeight: 60,
+        barGap: 10,
+      },
+      themeVariables: {
+        fontFamily: "Inter, Arial, sans-serif",
+        fontSize: "16px",
+        ganttTitleHeight: 50,
+      },
     });
 
     // Render to SVG string
@@ -445,22 +460,41 @@ export async function exportProjectCharterPdfStructured(opts: {
     if (node) svgText = node.outerHTML;
   }
 
+  // Draw the Gantt chart, scaled to fit both width & remaining height
   if (svgText) {
     const dataUrl = await svgTextToPngDataUrl(svgText, 2);
     const imgProps = pdf.getImageProperties(dataUrl);
+
     const availableW = pageWidth - 2 * margin;
-    const scale = availableW / imgProps.width;
+
+    // If not enough vertical space, start a new page
+    const remainingH = pageHeight - margin - footerHeight - y - 8;
+    const minUsefulH = 120;
+    if (remainingH < minUsefulH) {
+      pdf.addPage();
+      y = margin + headerHeight;
+    }
+
+    // Fit to current page inc footer
+    const maxDrawableH = pageHeight - margin - footerHeight - y - 8;
+    const scaleW = availableW / imgProps.width;
+    const scaleH = maxDrawableH / imgProps.height;
+    const scale = Math.min(scaleW, scaleH);
+
+    const drawW = imgProps.width * scale;
+    const drawH = imgProps.height * scale;
+
     pdf.addImage(
       dataUrl,
       "PNG",
       margin,
       y + 8,
-      availableW,
-      imgProps.height * scale,
+      drawW,
+      drawH,
       undefined,
       "FAST",
     );
-    y += imgProps.height * scale + 20;
+    y += drawH + 20;
   } else {
     pdf.setFont("helvetica", "italic");
     pdf.setTextColor(100);
@@ -493,7 +527,7 @@ export async function exportProjectCharterPdfStructured(opts: {
     head: [["Role", "Name", "Signature", "Date"]],
     body: authRows,
     styles: { font: "helvetica", fontSize: 10, cellPadding: 4 },
-    headStyles: { fillColor: [33, 37, 41], textColor: 255 },
+    headStyles: { fillColor: [60, 63, 65], textColor: 255 },
     columnStyles: {
       0: { cellWidth: 160 },
       1: { cellWidth: 140 },

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Copy, Eye, Sparkles } from "lucide-react";
 import type { ProjectInit, WbsRow } from "@/data/types";
@@ -31,11 +32,6 @@ function debounce<T extends (...args: unknown[]) => void>(fn: T, ms = 150) {
   };
 }
 
-function currentTheme(): "default" | "dark" {
-  const isDark = document.documentElement.classList.contains("dark");
-  return isDark ? "dark" : "default";
-}
-
 export default function GanttSection({
   project,
   wbsRows,
@@ -67,8 +63,17 @@ export default function GanttSection({
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "loose",
-      theme: currentTheme(),
-      gantt: { axisFormat: "%b %d" },
+      theme: "neutral",
+      gantt: {
+        axisFormat: "%b %d",
+        barHeight: 60,
+        barGap: 10,
+      },
+      themeVariables: {
+        fontFamily: "Inter, Arial, sans-serif",
+        fontSize: "16px",
+        ganttTitleHeight: 50,
+      },
     });
   }, []);
 
@@ -140,6 +145,20 @@ export default function GanttSection({
           abapMandays: r.abapMandays,
         })),
       );
+
+      //   const text = `gantt
+      // title Project Gantt Chart
+      // dateFormat  YYYY-MM-DD
+      // section Initiation
+      // Requirements Gathering    :a1, 2025-11-06, 10d
+      // section Design
+      // Design Phase              :a2, after a1, 15d
+      // section Development
+      // Development Phase         :a3, after a2, 30d
+      // section Testing
+      // Testing Phase             :a4, after a3, 10d
+      // section Deployment
+      // Deployment                :a5, after a4, 5d`;
       const code = extractMermaidBlock(text);
 
       setMermaidCode(code);
