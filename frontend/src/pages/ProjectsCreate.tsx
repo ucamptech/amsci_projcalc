@@ -28,6 +28,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import CostByResourceSection from "@/components/CostByResourceSection";
 import DashLayout from "@/layouts/DashLayout";
 import { FileText } from "lucide-react";
@@ -39,11 +40,14 @@ import { cryptoId } from "@/utils/number";
 import { exportProjectCharterExcel } from "@/utils/xlsxExport";
 import { exportProjectCharterPdfStructured } from "@/utils/pdfExport";
 import { mapToWbsRows } from "@/utils/mapToWBSRows";
+import { useBusyOverlay } from "@/components/BusyOverlayProvider";
 import useLocalStorage from "@/hooks/useLocalStorage";
+import { validateProjectProposal } from "@/api/api_ai";
 
 export default function ProjectsCreate() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { begin, end } = useBusyOverlay();
 
   // If there's an id in the URL, show saved project.
   const hasId = Boolean(id);
@@ -61,6 +65,11 @@ export default function ProjectsCreate() {
   const [submitBusy, setSubmitBusy] = useState(false);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [editLocked, setEditLocked] = useState<boolean>(false);
+
+  const [finalCheckEnabled, setFinalCheckEnabled] = useState(false);
+  const [finalCheckBusy, setFinalCheckBusy] = useState(false);
+  const [finalCheckResult, setFinalCheckResult] = useState<string | null>(null);
+  const [finalCheckOpen, setFinalCheckOpen] = useState(false);
 
   // ---------- FETCH ----------
   const retrieveFromAPI = useCallback(async (): Promise<void> => {
@@ -300,6 +309,86 @@ export default function ProjectsCreate() {
     }
   }
 
+  // ---------- Final Checks ----------
+  async function onRunFinalCheck(): Promise<void> {
+    const payload = buildPayload();
+
+    if (!payload.name) {
+      setModal({
+        type: "error",
+        message: "Please fill out Project Name before running final check.",
+      });
+      return;
+    }
+
+    if (payload.estimates.length === 0) {
+      setModal({
+        type: "error",
+        message:
+          "Add at least one estimate (Resource + Mandays) in WBS before running final check.",
+      });
+      return;
+    }
+
+    setFinalCheckBusy(true);
+    setFinalCheckResult(null);
+
+    try {
+      begin();
+      const wbsSummary =
+        wbsRows.length === 0
+          ? "No WBS rows defined."
+          : wbsRows
+              .map((r, idx) => {
+                const fx = r.fxResourceId
+                  ? `FX: resource=${r.fxResourceId}, mandays=${r.fxMandays}`
+                  : "";
+                const abap = r.abapResourceId
+                  ? `ABAP: resource=${r.abapResourceId}, mandays=${r.abapMandays}`
+                  : "";
+                const combo = [fx, abap].filter(Boolean).join(" | ");
+                return `${idx + 1}. [${r.wbsId || "-"}] ${r.activity} ${combo}`;
+              })
+              .join("\n");
+
+      const result = await validateProjectProposal(
+        {
+          name: payload.name,
+          businessNeed: payload.businessNeed,
+          projectGoal: payload.projectGoal,
+          creationDate: project.creationDate ?? null,
+          measurableObjectives: payload.measurableObjectives,
+          deliverables: payload.deliverables,
+          outOfScope: payload.outOfScope,
+        },
+        wbsSummary,
+        ganttMermaid || null,
+      );
+
+      setFinalCheckResult(result || "No feedback was generated.");
+      setFinalCheckOpen(true);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unable to run final check.";
+      setModal({ type: "error", message });
+    } finally {
+      end();
+      setFinalCheckBusy(false);
+    }
+  }
+
+  // ---------- Wrapper for create/save click ----------
+  async function onClickCreateOrSave(): Promise<void> {
+    if (!canSubmit || submitBusy || editLocked) return;
+
+    // Only run AI check when checkbox is enabled
+    if (finalCheckEnabled) {
+      await onRunFinalCheck();
+    } else {
+      await onSubmitProject();
+    }
+  }
+
   function onSaveLocal(): void {
     try {
       localStorage.setItem(LS_PROJECT_KEY, JSON.stringify(project));
@@ -404,6 +493,24 @@ export default function ProjectsCreate() {
             />
           </div>
 
+          <div className="bg-muted/40 mt-6 mb-2 rounded-lg border p-4">
+            <div className="mb-2 text-base font-semibold">One Final Check</div>
+
+            <div className="flex items-start gap-3">
+              <Checkbox
+                checked={finalCheckEnabled}
+                onCheckedChange={(checked) =>
+                  setFinalCheckEnabled(checked === true)
+                }
+                disabled={submitBusy || finalCheckBusy || editLocked}
+              />
+              <p className="text-muted-foreground text-sm leading-snug">
+                Run a review to check if the details are cohesive and achievable
+                before creating the project.
+              </p>
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="mt-4 mb-3 flex items-center justify-between">
             {/* Left group */}
@@ -413,14 +520,14 @@ export default function ProjectsCreate() {
                 onClick={onResetLocal}
                 title="Clear inputs and local draft"
               >
-                Reset Load
+                Reset draft
               </Button>
               <Button
                 variant="default"
                 onClick={onSaveLocal}
                 title="Save to browser"
               >
-                Save Load
+                Save draft
               </Button>
             </div>
 
@@ -437,21 +544,32 @@ export default function ProjectsCreate() {
               </Button>
 
               <Button
-                disabled={!canSubmit || submitBusy || editLocked}
-                onClick={onSubmitProject}
+                disabled={
+                  !canSubmit || submitBusy || editLocked || finalCheckBusy
+                }
+                onClick={onClickCreateOrSave}
                 title={
                   editLocked ? "Unlock editing to save changes." : undefined
                 }
                 className="bg-green-600 text-white hover:bg-green-700"
               >
-                <Save className="mr-2 h-4 w-4" />
-                {submitBusy
-                  ? hasId
-                    ? "Saving…"
-                    : "Creating…"
-                  : hasId
-                    ? "Save Changes"
-                    : "Create Project"}
+                {finalCheckBusy ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Running final check…
+                  </span>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    {submitBusy
+                      ? hasId
+                        ? "Saving…"
+                        : "Creating…"
+                      : hasId
+                        ? "Save Changes"
+                        : "Create Project"}
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -485,6 +603,49 @@ export default function ProjectsCreate() {
                 <div className="mt-4 flex justify-end">
                   <Button onClick={() => setModal(null)}>Okay</Button>
                 </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* --- Modal for final checks --- */}
+          <Dialog
+            open={finalCheckOpen}
+            onOpenChange={(open) => {
+              if (!open) setFinalCheckOpen(false);
+            }}
+          >
+            <DialogContent className="sm:max-w-[700px]">
+              <DialogHeader>
+                <DialogTitle>Final project validity check</DialogTitle>
+                <DialogDescription>
+                  Review the AI feedback on the consistency and achievability of
+                  your project before creating it.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="bg-muted/40 mt-3 max-h-[360px] overflow-y-auto rounded-md border p-3 text-sm whitespace-pre-wrap">
+                {finalCheckResult || "No feedback available."}
+              </div>
+
+              <DialogFooter className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-between">
+                <Button
+                  variant="outline"
+                  onClick={() => setFinalCheckOpen(false)}
+                >
+                  Back and edit
+                </Button>
+                <Button
+                  className="bg-green-600 text-white hover:bg-green-700"
+                  onClick={async () => {
+                    setFinalCheckOpen(false);
+                    await onSubmitProject();
+                  }}
+                  disabled={submitBusy}
+                >
+                  {hasId
+                    ? "Proceed and save changes"
+                    : "Proceed and create project"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

@@ -69,25 +69,23 @@ export default function Sidebar({
             effectiveCollapsed ? "Expand sidebar" : "Collapse sidebar"
           }
           title={effectiveCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="bg-primary text-primary-foreground focus:ring-ring/60 focus:ring-offset-card flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-[0.98]"
+          className="focus:ring-ring/60 focus:ring-offset-card flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-transparent p-0 transition-transform focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-[0.98]"
         >
-          <svg
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" />
-          </svg>
+          <img
+            src="/amsci-logo-symbol.png"
+            alt="ACEA Logo"
+            className="h-9 w-auto object-contain"
+          />
         </button>
 
         {!effectiveCollapsed && (
-          <div className="min-w-0">
-            <p className="truncate leading-tight font-semibold">JANUS</p>
-            <p className="text-muted-foreground truncate text-xs leading-tight">
-              Project Charter App
-            </p>
+          <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <p className="truncate leading-tight font-semibold">AMSCI</p>
+              <p className="text-muted-foreground truncate text-xs leading-tight">
+                Project Charter App
+              </p>
+            </div>
           </div>
         )}
       </div>

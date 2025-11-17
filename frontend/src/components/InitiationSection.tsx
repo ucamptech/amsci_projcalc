@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   generateDeliverables,
@@ -293,8 +292,8 @@ export default function InitiationSection({
                   disabled={lockActivity || fetchingObjectives || !canSuggest}
                   title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
                 >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  {fetchingObjectives ? "Generating…" : "Generate Objectives"}
+                  <Sparkles className="mr-0 h-4 w-4" />
+                  {/* {fetchingObjectives ? "Generating…" : "Generate Objectives"} */}
                 </Button>
               </div>
             </div>
@@ -384,10 +383,10 @@ export default function InitiationSection({
                   disabled={lockActivity || fetchingDeliverables || !canSuggest}
                   title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
                 >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  {fetchingDeliverables
+                  <Sparkles className="mr-0 h-4 w-4" />
+                  {/* {fetchingDeliverables
                     ? "Generating…"
-                    : "Generate Deliverables"}
+                    : "Generate Deliverables"} */}
                 </Button>
               </div>
             </div>
@@ -465,8 +464,8 @@ export default function InitiationSection({
                   disabled={lockActivity || fetchingOos || !canSuggest}
                   title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
                 >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  {fetchingOos ? "Generating…" : "Generate Out-of-Scope"}
+                  <Sparkles className="mr-0 h-4 w-4" />
+                  {/* {fetchingOos ? "Generating…" : "Generate Out-of-Scope"} */}
                 </Button>
               </div>
             </div>

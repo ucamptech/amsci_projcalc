@@ -441,6 +441,7 @@ export async function exportProjectCharterPdfStructured(opts: {
         axisFormat: "%b %d",
         barHeight: 60,
         barGap: 10,
+        useWidth: 800,
       },
       themeVariables: {
         fontFamily: "Inter, Arial, sans-serif",

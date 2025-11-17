@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Project } from "./types";
 import axios from "axios";
 
@@ -18,6 +19,12 @@ type MinimalWbs = {
   activity: string;
   fxMandays?: number | string;
   abapMandays?: number | string;
+};
+
+type ExtendedProjectForCheck = BaseProject & {
+  measurableObjectives?: string;
+  deliverables?: string;
+  outOfScope?: string;
 };
 
 function safeInt(n: unknown): number {
@@ -71,6 +78,8 @@ export async function generateObjectives(project: Project) {
 
     Write concise bullet points (one per line). Do not include any intro text or explanations.`
     : `Write 3–5 SMART objectives (Specific, Measurable, Achievable, Relevant, Time-bound) based on:
+
+    Project Details:
     - Project Name: ${project.name || "N/A"}
     - Business Need: ${project.businessNeed || "N/A"}
     - Project Goal: ${project.projectGoal || "N/A"}
@@ -202,4 +211,92 @@ export async function generateGanttMermaid(
 
   const body = buildBody(project, instruction);
   return postPrompt(body);
+}
+
+/**
+ * Validate a project proposal for cohesion and achievability.
+ */
+export async function validateProjectProposal(
+  project: ExtendedProjectForCheck,
+  wbsSummary: string,
+  ganttMermaid: string | null,
+): Promise<string> {
+  const instruction = `
+You are an experienced IT project manager reviewing an internal project proposal.
+
+STRICT RULES — YOU MUST FOLLOW:
+- Only use data provided in this prompt.
+- Ignore outside/internet knowledge, even if the project name is familiar.
+- EVERYTHING MUST BE WRITTEN IN BULLET POINTS.
+- NO PARAGRAPHS ALLOWED, except the Verdict which must be a single sentence.
+- Follow the exact output format below.
+
+Your task is to analyze and validate whether the project is consistent and achievable.  
+Check alignment between: title, business need, goal, objectives, deliverables, out of scope, WBS, estimates, and timeline.
+
+Project details:
+- Title: ${project.name || "N/A"}
+- Business Need: ${project.businessNeed || "N/A"}
+- Project Goal: ${project.projectGoal || "N/A"}
+- Measurable Objectives: ${project.measurableObjectives || "N/A"}
+- Deliverables: ${project.deliverables || "N/A"}
+- Out of Scope: ${project.outOfScope || "N/A"}
+- Creation Date: ${project.creationDate || "today"}
+
+Timeline / Gantt (Mermaid):
+${ganttMermaid || "No Gantt chart provided."}
+
+WBS Summary:
+${wbsSummary}
+
+OUTPUT FORMAT (STRICT — DO NOT CHANGE):
+
+Summary:
+- bullet
+- bullet
+
+Strengths:
+- bullet
+- bullet
+
+Issues / Risks:
+- bullet
+- bullet
+
+Suggestions:
+- bullet
+- bullet
+
+Verdict:
+A one-sentence verdict about whether the project is realistically achievable.
+`.trim();
+
+  const body = buildValidationBody(instruction);
+  body.max_tokens = 500;
+  body.temperature = 0.4;
+
+  const text = await postPrompt(body);
+  return text;
+}
+
+function buildValidationBody(instruction: string) {
+  return {
+    model: "qwen/qwen3-vl-30b",
+    messages: [
+      {
+        role: "system",
+        content:
+          "as a project manager to check if the project title, business need, objectives, deliverables, WBS, resource estimates, and project timeline are cohesive and achievable before creating the project. ",
+      },
+      {
+        role: "user",
+        content: instruction,
+      },
+    ],
+    input: instruction,
+    stream: false,
+    max_tokens: 700,
+    temperature: 0.25,
+    top_p: 0.9,
+  };
 }
