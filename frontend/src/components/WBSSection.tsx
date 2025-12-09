@@ -1,6 +1,17 @@
-import type { Activity, Resource } from "@/api/types";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  DEFAULT_ACTIVITIES,
+  DEFAULT_RESOURCES,
+  RESOURCE_TYPE,
+} from "@/lib/constants/project";
+import type { Dispatch, SetStateAction } from "react";
 import {
   Select,
   SelectContent,
@@ -12,406 +23,475 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cryptoId, parse2 } from "@/utils/number";
 
+import type { Activity } from "@/types/activity.type";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import SectionTitle from "./SectionTitle";
-import type { WbsRow } from "@/data/types";
-import { useMemo } from "react";
+import type { Resource } from "@/types/resource.type";
+import type { WBSItem } from "@/types/project.type";
 
-type Props = {
-  wbsRows: WbsRow[];
-  setWbsRows: React.Dispatch<React.SetStateAction<WbsRow[]>>;
-  resources: Resource[];
-  activities: Activity[];
+//--------------------------------------------------------------------------
+// Types
+//--------------------------------------------------------------------------
+type SectionProps = {
+  wbsItems: WBSItem[];
+  setWbsItems: Dispatch<SetStateAction<WBSItem[]>>;
   lockActivity?: boolean;
+  activities?: Activity[];
+  resources?: Resource[];
 };
 
-export default function WBSSection({
-  wbsRows,
-  setWbsRows,
-  resources,
-  activities,
+//--------------------------------------------------------------------------
+// Constants
+//--------------------------------------------------------------------------
+const NONE_VALUE = "__none__";
+
+//--------------------------------------------------------------------------
+// Main component
+//--------------------------------------------------------------------------
+export function WBSSection({
+  wbsItems,
+  setWbsItems,
   lockActivity = false,
-}: Props) {
-  const isSingleRow = wbsRows.length <= 1;
-  const NONE_VALUE = "__none__";
+  activities,
+  resources,
+}: SectionProps) {
+  //--------------------------------------------------------------------------
+  // Helpers
+  //--------------------------------------------------------------------------
+  const totalFxMandays = wbsItems.reduce(
+    (sum, item) => sum + (Number(item.fxMandays) || 0),
+    0,
+  );
+  const totalAbapMandays = wbsItems.reduce(
+    (sum, item) => sum + (Number(item.abapMandays) || 0),
+    0,
+  );
+  const activityOptions =
+    activities && activities.length > 0
+      ? activities
+      : DEFAULT_ACTIVITIES.map((item) => ({
+          id: item.id,
+          wbsId: item.wbsId,
+          activity: item.activity,
+        }));
+  const fxResourceOptions: Resource[] = (
+    resources?.length ? resources : DEFAULT_RESOURCES
+  ).filter(
+    (resource) => resource.resourceType?.name === RESOURCE_TYPE.Functional,
+  );
+  const abapResourceOptions: Resource[] = (
+    resources?.length ? resources : DEFAULT_RESOURCES
+  ).filter(
+    (resource) => resource.resourceType?.name === RESOURCE_TYPE.Technical,
+  );
 
-  // ---------- derived states ----------
-  const totals = useMemo(() => {
-    const fx = wbsRows.reduce((sum, r) => sum + (Number(r.fxMandays) || 0), 0);
-    const abap = wbsRows.reduce(
-      (sum, r) => sum + (Number(r.abapMandays) || 0),
-      0,
-    );
-    return { fx, abap };
-  }, [wbsRows]);
+  //--------------------------------------------------------------------------
+  // Functions
+  //--------------------------------------------------------------------------
 
-  const { fxResources, abapResources } = useMemo(() => {
-    const fxResources = resources.filter(
-      (r) => r.resourceType?.name.toLowerCase() === "functional",
-    );
-    const abapResources = resources.filter(
-      (r) => r.resourceType?.name.toLowerCase() === "technical",
-    );
-    return { fxResources, abapResources };
-  }, [resources]);
+  const addWBSItem = () => {
+    const newId = wbsItems.length + 1;
+    const defaultActivity = activityOptions[0];
 
-  // ----- actions -----
-  function updateRow(id: string, patch: Partial<WbsRow>) {
-    setWbsRows((rows) =>
-      rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-    );
-  }
-
-  function addRow() {
-    const newRow: WbsRow = {
-      id: cryptoId(),
-      activityId: 0,
-      wbsId: "",
-      activity: "", // start empty, user will select from options
-      fxResourceId: "",
+    const newRow: WBSItem = {
+      id: newId,
+      wbsId: defaultActivity?.wbsId ?? `${newId}.0`,
+      activityId: defaultActivity?.id ?? 1,
+      fxResourceId: null,
+      fxStartDate: "",
       fxMandays: 0,
-      abapResourceId: "",
+      abapResourceId: null,
+      abapStartDate: "",
       abapMandays: 0,
     };
-    setWbsRows((rows) => [...rows, newRow]);
-  }
 
-  function removeRow(id: string) {
-    setWbsRows((rows) => {
-      if (rows.length <= 1) return rows;
-      return rows.filter((r) => r.id !== id);
-    });
-  }
+    setWbsItems([...wbsItems, newRow]);
+  };
 
-  function moveRow(id: string, dir: "up" | "down") {
-    setWbsRows((rows) => {
-      const idx = rows.findIndex((r) => r.id === id);
-      if (idx < 0) return rows;
-      const newIdx = dir === "up" ? idx - 1 : idx + 1;
-      if (newIdx < 0 || newIdx >= rows.length) return rows;
-      const clone = [...rows];
-      const [spliced] = clone.splice(idx, 1);
-      clone.splice(newIdx, 0, spliced);
-      return clone;
-    });
-  }
+  const deleteWBSItem = (id: number) => {
+    setWbsItems(wbsItems.filter((item) => item.id !== id));
+  };
 
-  // ---------- render ----------
+  const moveWBSItem = (index: number, direction: "up" | "down") => {
+    const newItems = [...wbsItems];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+
+    if (targetIndex < 0 || targetIndex >= newItems.length) return;
+
+    [newItems[index], newItems[targetIndex]] = [
+      newItems[targetIndex],
+      newItems[index],
+    ];
+    setWbsItems(newItems);
+  };
+
+  const updateWBSItem = (id: number, patch: Partial<WBSItem>) => {
+    setWbsItems((items) =>
+      items.map((item) => {
+        if (item.id !== id) return item;
+
+        const updated: WBSItem = { ...item, ...patch };
+
+        if ("activityId" in patch) {
+          const selected = activityOptions.find(
+            (option) => option.id === Number(patch.activityId),
+          );
+          if (selected) {
+            updated.wbsId = selected.wbsId;
+          }
+        }
+
+        if (
+          "fxResourceId" in patch &&
+          (patch.fxResourceId === null || patch.fxResourceId === undefined)
+        ) {
+          updated.fxStartDate = "";
+          updated.fxMandays = 0;
+        }
+
+        if (
+          "abapResourceId" in patch &&
+          (patch.abapResourceId === null || patch.abapResourceId === undefined)
+        ) {
+          updated.abapStartDate = "";
+          updated.abapMandays = 0;
+        }
+
+        return updated;
+      }),
+    );
+  };
+
+  //--------------------------------------------------------------------------
+  // Render
+  //--------------------------------------------------------------------------
   return (
-    <section className="mt-6 gap-0">
-      <SectionTitle title="II. High-Level WBS Breakdown with Estimated Effort" />
-
+    <section className="mt-0 gap-0">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">
-            Work Breakdown &amp; Estimates
-          </CardTitle>
-          <Button onClick={() => addRow()} size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Row
-          </Button>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>
+                High-level WBS breakdown with estimated effort
+              </CardTitle>
+              <CardDescription className="mt-2">
+                Define activities, resources, and effort estimation
+              </CardDescription>
+            </div>
+            <Button onClick={addWBSItem} size="sm" disabled={lockActivity}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add row
+            </Button>
+          </div>
         </CardHeader>
+        <CardContent>
+          <div className="overflow-auto rounded-md border">
+            <div className="max-h-[400px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="bg-background sticky top-0 z-10 min-w-20">
+                      WBS Id
+                    </TableHead>
+                    <TableHead className="bg-background sticky top-0 z-10 min-w-[180px]">
+                      Activity
+                    </TableHead>
+                    <TableHead className="bg-background sticky top-0 z-10 min-w-[180px]">
+                      FX resource
+                    </TableHead>
+                    <TableHead className="bg-background sticky top-0 z-10 min-w-[140px]">
+                      Start date
+                    </TableHead>
+                    <TableHead className="bg-background sticky top-0 z-10 min-w-[140px]">
+                      Mandays
+                    </TableHead>
+                    <TableHead className="bg-background sticky top-0 z-10 min-w-[180px]">
+                      ABAP resource
+                    </TableHead>
+                    <TableHead className="bg-background sticky top-0 z-10 min-w-[140px]">
+                      Start date
+                    </TableHead>
+                    <TableHead className="bg-background sticky top-0 z-10 min-w-[140px]">
+                      Mandays
+                    </TableHead>
+                    <TableHead className="bg-background sticky top-0 z-10 min-w-[140px]">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
 
-        <CardContent className="p-0 sm:p-2 md:p-4">
-          <div className="border-border scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent relative max-h-[60vh] w-full overflow-x-auto overflow-y-auto rounded-lg border">
-            <Table className="w-full min-w-[768px] border-collapse align-middle text-sm">
-              <TableHeader className="bg-background sticky top-0 z-10 border-b">
-                <TableRow>
-                  <TableHead className="w-[10%] p-2 text-left whitespace-nowrap">
-                    WBS ID
-                  </TableHead>
-                  <TableHead className="w-[25%] p-2 text-left whitespace-nowrap">
-                    Activity
-                  </TableHead>
-                  <TableHead className="w-[20%] p-2 text-left whitespace-nowrap">
-                    FX Resource
-                  </TableHead>
-                  <TableHead className="w-[10%] p-2 text-right whitespace-nowrap">
-                    Mandays
-                  </TableHead>
-                  <TableHead className="w-[20%] p-2 text-left whitespace-nowrap">
-                    ABAP Resource
-                  </TableHead>
-                  <TableHead className="w-[10%] p-2 text-right whitespace-nowrap">
-                    Mandays
-                  </TableHead>
-                  <TableHead className="w-[5%] p-2 text-right whitespace-nowrap">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
+                <TableBody>
+                  {wbsItems.map((item, index) => {
+                    const fxEnabled = !!item.fxResourceId;
+                    const abapEnabled = !!item.abapResourceId;
+                    const fxSelectValue =
+                      item.fxResourceId !== null &&
+                      item.fxResourceId !== undefined
+                        ? item.fxResourceId.toString()
+                        : NONE_VALUE;
+                    const abapSelectValue =
+                      item.abapResourceId !== null &&
+                      item.abapResourceId !== undefined
+                        ? item.abapResourceId.toString()
+                        : NONE_VALUE;
 
-              <TableBody>
-                {wbsRows.map((r, idx) => {
-                  const fxEnabled = !!r.fxResourceId;
-                  const abapEnabled = !!r.abapResourceId;
+                    return (
+                      <TableRow key={item.id}>
+                        {/* --- WBS Id (auto fills from activity) --- */}
+                        <TableCell>
+                          <Input
+                            value={item.wbsId}
+                            readOnly={true}
+                            onChange={(e) =>
+                              updateWBSItem(item.id, { wbsId: e.target.value })
+                            }
+                            className="w-full min-w-20"
+                          />
+                        </TableCell>
 
-                  return (
-                    <TableRow key={r.id}>
-                      {/* --- WBS ID (auto-fills from activity) --- */}
-                      <TableCell>
-                        <Input
-                          className="w-full"
-                          value={r.wbsId}
-                          readOnly={true}
-                          maxLength={10}
-                          onChange={(e) =>
-                            !lockActivity &&
-                            updateRow(r.id, { wbsId: e.target.value })
-                          }
-                        />
-                      </TableCell>
-
-                      {/* --- Activity (Select) --- */}
-                      <TableCell className="overflow-hidden">
-                        <div className="grid gap-1">
-                          <Label className="sr-only">Activity</Label>
+                        {/* --- Activity --- */}
+                        <TableCell>
                           <Select
                             disabled={lockActivity}
-                            value={r.activityId ? String(r.activityId) : ""}
-                            onValueChange={(val) => {
-                              const opt = activities.find(
-                                (activity) => String(activity.id) === val,
-                              );
-                              if (!opt) return;
-                              updateRow(r.id, {
-                                activityId: opt.id,
-                                activity: opt.activity,
-                                wbsId: opt.wbsId,
-                              });
-                            }}
+                            value={item.activityId?.toString() ?? ""}
+                            onValueChange={(value) =>
+                              updateWBSItem(item.id, {
+                                activityId: value ? Number(value) : undefined,
+                              })
+                            }
                           >
-                            <SelectTrigger className="w-full max-w-full truncate">
+                            <SelectTrigger className="max-w-[180px] min-w-[180px]">
+                              <SelectValue placeholder="Select activity" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {activityOptions.map((activity) => (
+                                <SelectItem
+                                  key={activity.activity}
+                                  value={activity.id.toString()}
+                                >
+                                  {activity.activity}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+
+                        {/* -- FX resource -- */}
+                        <TableCell>
+                          <Select
+                            disabled={lockActivity}
+                            value={fxSelectValue}
+                            onValueChange={(value) =>
+                              updateWBSItem(item.id, {
+                                fxResourceId:
+                                  value === NONE_VALUE ? null : Number(value),
+                              })
+                            }
+                          >
+                            <SelectTrigger className="max-w-[180px] min-w-[180px]">
                               <SelectValue
-                                placeholder="Select activity"
+                                placeholder="Select FX resource"
                                 className="truncate"
                               />
                             </SelectTrigger>
-                            <SelectContent className="min-w-0">
-                              {activities.map((activity) => (
+                            <SelectContent>
+                              <SelectItem value={NONE_VALUE}>
+                                Select FX
+                              </SelectItem>
+                              {fxResourceOptions.map((resource) => (
                                 <SelectItem
-                                  key={activity.id}
-                                  value={String(activity.id)}
+                                  key={resource.id}
+                                  value={resource.id.toString()}
+                                  className="truncate"
                                 >
-                                  <div className="flex items-center gap-2 truncate">
-                                    <span className="font-medium">
-                                      {activity.activity}
-                                    </span>
-                                    {/* <span className="text-muted-foreground">
-                                    ({activity.wbsId})
-                                  </span> */}
+                                  <div
+                                    className="truncate"
+                                    title={`${resource.name} — ${resource.title}`}
+                                  >
+                                    {resource.name} — {resource.title}
                                   </div>
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-                      </TableCell>
+                        </TableCell>
 
-                      {/* --- FX Resource --- */}
-                      <TableCell className="overflow-hidden">
-                        <div className="grid gap-1">
-                          <Label className="sr-only">FX Resource</Label>
+                        {/* -- FX start date -- */}
+                        <TableCell>
+                          <Input
+                            type="date"
+                            readOnly={lockActivity}
+                            disabled={!fxEnabled}
+                            value={item.fxStartDate ?? ""}
+                            onChange={(e) =>
+                              updateWBSItem(item.id, {
+                                fxStartDate: e.target.value || null,
+                              })
+                            }
+                            className="w-full min-w-[130px]"
+                          />
+                        </TableCell>
+
+                        {/* -- FX mandays -- */}
+                        <TableCell>
+                          <Input
+                            type="number"
+                            readOnly={lockActivity}
+                            disabled={!fxEnabled}
+                            value={item.fxMandays}
+                            onChange={(e) =>
+                              updateWBSItem(item.id, {
+                                fxMandays: Number(e.target.value) || 0,
+                              })
+                            }
+                            min="0"
+                            step="1"
+                            className="w-full min-w-20 text-right"
+                          />
+                        </TableCell>
+
+                        {/* ABAP resource */}
+                        <TableCell>
                           <Select
-                            disabled={lockActivity}
-                            value={String(r.fxResourceId ?? "")}
-                            onValueChange={(val) => {
-                              if (val === NONE_VALUE) {
-                                updateRow(r.id, {
-                                  fxResourceId: "",
-                                  fxMandays: 0,
-                                });
-                              } else {
-                                updateRow(r.id, { fxResourceId: val });
-                              }
-                            }}
+                            value={abapSelectValue}
+                            onValueChange={(value) =>
+                              updateWBSItem(item.id, {
+                                abapResourceId:
+                                  value === NONE_VALUE ? null : Number(value),
+                              })
+                            }
                           >
-                            <SelectTrigger className="w-full max-w-full truncate">
+                            <SelectTrigger className="max-w-[180px] min-w-[180px]">
                               <SelectValue
-                                placeholder="Select FX"
+                                placeholder="Select ABAP resource"
                                 className="truncate"
                               />
                             </SelectTrigger>
-                            <SelectContent className="min-w-0">
-                              <SelectItem value={NONE_VALUE}>
-                                Select FX
-                              </SelectItem>
-                              {fxResources.map((res) => (
-                                <SelectItem key={res.id} value={String(res.id)}>
-                                  <span className="block max-w-[360px] truncate">
-                                    {res.name} — {res.title}
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </TableCell>
-
-                      {/* --- FX Mandays --- */}
-                      <TableCell className="text-right">
-                        <Input
-                          className="w-full text-right"
-                          readOnly={lockActivity}
-                          disabled={!fxEnabled}
-                          inputMode="decimal"
-                          type="number"
-                          step="0.5"
-                          min={0}
-                          max={400}
-                          value={r.fxMandays}
-                          onChange={(e) =>
-                            updateRow(r.id, {
-                              fxMandays: parse2(e.target.value) as number,
-                            })
-                          }
-                          onBlur={(e) =>
-                            updateRow(r.id, {
-                              fxMandays: parse2(e.target.value) as number,
-                            })
-                          }
-                        />
-                      </TableCell>
-
-                      {/* --- ABAP Resource --- */}
-                      <TableCell className="overflow-hidden">
-                        <div className="grid gap-1">
-                          <Label className="sr-only">ABAP Resource</Label>
-                          <Select
-                            disabled={lockActivity}
-                            value={String(r.abapResourceId ?? "")}
-                            onValueChange={(val) => {
-                              if (val === NONE_VALUE) {
-                                updateRow(r.id, {
-                                  abapResourceId: "",
-                                  abapMandays: 0,
-                                });
-                              } else {
-                                updateRow(r.id, { abapResourceId: val });
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="w-full max-w-full truncate">
-                              <SelectValue
-                                placeholder="Select ABAP"
-                                className="truncate"
-                              />
-                            </SelectTrigger>
-                            <SelectContent className="min-w-0">
+                            <SelectContent>
                               <SelectItem value={NONE_VALUE}>
                                 Select ABAP
                               </SelectItem>
-                              {abapResources.map((res) => (
-                                <SelectItem key={res.id} value={String(res.id)}>
-                                  <span className="block max-w-[360px] truncate">
-                                    {res.name} — {res.title}
-                                  </span>
+                              {abapResourceOptions.map((resource) => (
+                                <SelectItem
+                                  key={resource.id}
+                                  value={resource.id.toString()}
+                                  className="truncate"
+                                >
+                                  <div
+                                    className="truncate"
+                                    title={`${resource.name} — ${resource.title}`}
+                                  >
+                                    {resource.name} — {resource.title}
+                                  </div>
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-                      </TableCell>
+                        </TableCell>
 
-                      {/* --- ABAP Mandays --- */}
-                      <TableCell className="text-right">
-                        <Input
-                          className="w-full text-right"
-                          readOnly={lockActivity}
-                          disabled={!abapEnabled}
-                          inputMode="decimal"
-                          type="number"
-                          step="0.5"
-                          min={0}
-                          max={400}
-                          value={r.abapMandays}
-                          onChange={(e) =>
-                            updateRow(r.id, {
-                              abapMandays: parse2(e.target.value) as number,
-                            })
-                          }
-                          onBlur={(e) =>
-                            updateRow(r.id, {
-                              abapMandays: parse2(e.target.value) as number,
-                            })
-                          }
-                        />
-                      </TableCell>
-
-                      {/* --- Actions --- */}
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            onClick={() => moveRow(r.id, "up")}
-                            disabled={idx === 0}
-                            title="Move up"
-                          >
-                            <ArrowUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            onClick={() => moveRow(r.id, "down")}
-                            disabled={idx === wbsRows.length - 1}
-                            title="Move down"
-                          >
-                            <ArrowDown className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="destructive"
-                            onClick={() => removeRow(r.id)}
-                            disabled={isSingleRow}
-                            title={
-                              isSingleRow
-                                ? "At least one row is required"
-                                : "Remove row"
+                        {/* -- ABAP start date -- */}
+                        <TableCell>
+                          <Input
+                            type="date"
+                            readOnly={lockActivity}
+                            disabled={!abapEnabled}
+                            value={item.abapStartDate ?? ""}
+                            onChange={(e) =>
+                              updateWBSItem(item.id, {
+                                abapStartDate: e.target.value || null,
+                              })
                             }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
+                            className="w-full min-w-[130px]"
+                          />
+                        </TableCell>
 
-              <TableFooter className="bg-background sticky bottom-0 z-10 border-t">
-                <TableRow>
-                  <TableCell colSpan={2}>
-                    <strong>TOTAL ESTIMATED EFFORT</strong>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <em>FX Total</em>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <strong>{totals.fx.toFixed(2)}</strong>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <em>ABAP Total</em>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <strong>{totals.abap.toFixed(2)}</strong>
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableFooter>
-            </Table>
+                        {/* -- ABAP mandays -- */}
+                        <TableCell>
+                          <Input
+                            type="number"
+                            readOnly={lockActivity}
+                            disabled={!abapEnabled}
+                            value={item.abapMandays}
+                            onChange={(e) =>
+                              updateWBSItem(item.id, {
+                                abapMandays: Number(e.target.value) || 0,
+                              })
+                            }
+                            min="0"
+                            step="1"
+                            className="w-full min-w-20 text-right"
+                          />
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {/* Sort buttons */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => moveWBSItem(index, "up")}
+                              disabled={index === 0}
+                            >
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => moveWBSItem(index, "down")}
+                              disabled={index === wbsItems.length - 1}
+                            >
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+
+                            {/* Delete button */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteWBSItem(item.id)}
+                              disabled={wbsItems.length === 1}
+                              className="text-destructive hover:bg-destructive/10 focus-visible:bg-destructive/10 active:bg-destructive/20"
+                            >
+                              <Trash2 className="text-destructive h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Footer - Total */}
+          <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 text-sm">
+            <span className="font-semibold tracking-wide">
+              Total Estimated Effort
+            </span>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="bg-muted/40 flex items-center gap-2 rounded-lg border px-3 py-2">
+                <span className="text-muted-foreground text-xs uppercase">
+                  FX Total
+                </span>
+                <span className="font-semibold">
+                  {totalFxMandays.toFixed(2)} mandays
+                </span>
+              </div>
+              <div className="bg-muted/40 flex items-center gap-2 rounded-lg border px-3 py-2">
+                <span className="text-muted-foreground text-xs uppercase">
+                  ABAP Total
+                </span>
+                <span className="font-semibold">
+                  {totalAbapMandays.toFixed(2)} mandays
+                </span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

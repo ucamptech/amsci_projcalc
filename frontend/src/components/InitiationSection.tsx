@@ -1,141 +1,124 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
-  generateDeliverables,
-  generateObjectives,
-  generateOutOfScope,
-} from "@/api/api_ai";
-import { useEffect, useState } from "react";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ProjectInit } from "@/data/types";
-import SectionTitle from "./SectionTitle";
-import { Sparkles } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { useBusyOverlay } from "./BusyOverlayProvider";
+import { useEffect, useState, type ChangeEvent } from "react";
+import type { ProjectInit } from "@/types/project.type";
+import { useBusyOverlay } from "@/contexts/BusyOverlayContext";
+import { today } from "@/lib/utils/date.utils";
+import {
+  generateDeliverables,
+  generateObjectives,
+  generateOutOfScope,
+} from "@/lib/api/ai.api";
 
-type Props = {
+//--------------------------------------------------------------------------
+// Types
+//--------------------------------------------------------------------------
+type SectionProps = {
   project: ProjectInit;
   setProject: (p: (prev: ProjectInit) => ProjectInit) => void;
   lockActivity?: boolean;
 };
 
-export default function InitiationSection({
+//--------------------------------------------------------------------------
+// Constants
+//--------------------------------------------------------------------------
+const suggestedMilestones = `
+Phase 1: Project Initiation (Weeks 1-2)
+- Project kickoff meeting
+- Stakeholder alignment
+- Initial requirements gathering
+
+Phase 2: Design & Planning (Weeks 3-5)
+- System architecture design
+- UI/UX mockups
+- Technical specifications
+  `.trim();
+
+//--------------------------------------------------------------------------
+// Main component
+//--------------------------------------------------------------------------
+export function InitiationSection({
   project,
   setProject,
   lockActivity = false,
-}: Props) {
-  const { begin, end } = useBusyOverlay();
+}: SectionProps) {
+  //--------------------------------------------------------------------------
+  // States
+  //--------------------------------------------------------------------------
 
+  // Objectives states
   const [fetchingObjectives, setFetchingObjectives] = useState(false);
-  const [fetchingDeliverables, setFetchingDeliverables] = useState(false);
-  const [fetchingOos, setFetchingOos] = useState(false);
-
-  // Suggestions state (Objectives)
   const [showSuggestionsObj, setShowSuggestionsObj] = useState(false);
   const [suggestedObjectives, setSuggestedObjectives] = useState("");
   const [copiedObj, setCopiedObj] = useState(false);
+  const [objError, setObjError] = useState<string | null>(null);
 
-  // Suggestions state (Deliverables)
+  // Deliverables states
+  const [fetchingDeliverables, setFetchingDeliverables] = useState(false);
   const [showSuggestionsDeliv, setShowSuggestionsDeliv] = useState(false);
   const [suggestedDeliverables, setSuggestedDeliverables] = useState("");
   const [copiedDeliv, setCopiedDeliv] = useState(false);
+  const [delivError, setDelivError] = useState<string | null>(null);
 
-  // Suggestions state (Out-of-Scope)
+  // Out-of-scopt states
+  const [fetchingOos, setFetchingOos] = useState(false);
   const [showSuggestionsOos, setShowSuggestionsOos] = useState(false);
   const [suggestedOos, setSuggestedOos] = useState("");
   const [copiedOos, setCopiedOos] = useState(false);
-
-  const [objError, setObjError] = useState<string | null>(null);
-  const [delivError, setDelivError] = useState<string | null>(null);
   const [oosError, setOosError] = useState<string | null>(null);
 
-  const today = new Date().toISOString().split("T")[0];
+  //--------------------------------------------------------------------------
+  // Helpers
+  //--------------------------------------------------------------------------
 
-  useEffect(() => {
-    if (!project.creationDate) {
-      setProject((p) => ({ ...p, creationDate: today }));
-    }
-  }, [project.creationDate, setProject, today]);
-
-  // ----- actions -----
-  function onChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) {
-    const { name, value } = e.target;
-    setProject((p) => ({ ...p, [name]: value }));
-  }
-
-  async function onGenerateObjectives() {
-    setObjError(null);
-    setFetchingObjectives(true);
-    setCopiedObj(false);
-    begin();
-    const t0 = performance.now();
-    try {
-      const text = await generateObjectives(project);
-      // setProject((p) => ({ ...p, measurableObjectives: text }));
-      setSuggestedObjectives(text);
-      setShowSuggestionsObj(true);
-    } catch (err) {
-      setObjError("Failed to generate suggested objectives.");
-      console.error("Objectives API error:", err);
-    } finally {
-      setFetchingObjectives(false);
-      end();
-      console.log(`Objectives took ${(performance.now() - t0) / 1000}s`);
-    }
-  }
-
-  async function onGenerateDeliverables() {
-    setDelivError(null);
-    setFetchingDeliverables(true);
-    setCopiedDeliv(false);
-    begin();
-    const t0 = performance.now();
-    try {
-      const text = await generateDeliverables(project);
-      // const text = "sample text only";
-      // setProject((p) => ({ ...p, deliverables: text }));
-      setSuggestedDeliverables(text);
-      setShowSuggestionsDeliv(true);
-    } catch (err) {
-      setDelivError("Failed to generate suggested deliverables.");
-      console.error("Deliverables API error:", err);
-    } finally {
-      setFetchingDeliverables(false);
-      end();
-      console.log(`Deliverables took ${(performance.now() - t0) / 1000}s`);
-    }
-  }
-
-  async function onGenerateOutOfScope() {
-    setOosError(null);
-    setFetchingOos(true);
-    setCopiedOos(false);
-    begin();
-    const t0 = performance.now();
-    try {
-      const text = await generateOutOfScope(project);
-      // const text = "sample text only";
-      // setProject((p) => ({ ...p, outOfScope: text }));
-      setSuggestedOos(text);
-      setShowSuggestionsOos(true);
-    } catch (err) {
-      setOosError("Failed to generate suggested out-of-scope items.");
-      console.error("Out-of-Scope API error:", err);
-    } finally {
-      setFetchingOos(false);
-      end();
-      console.log(`Out-of-Scope took ${(performance.now() - t0) / 1000}s`);
-    }
-  }
+  const { showBusy, hideBusy } = useBusyOverlay();
 
   const canSuggest =
     (project.businessNeed?.trim()?.length ?? 0) > 0 ||
     (project.projectGoal?.trim()?.length ?? 0) > 0 ||
     (project.name?.trim()?.length ?? 0) > 0;
+
+  //--------------------------------------------------------------------------
+  // useEffect
+  //--------------------------------------------------------------------------
+  useEffect(() => {
+    if (!project.startDate) {
+      setProject((p) => ({
+        ...p,
+        startDate: p.startDate || today,
+      }));
+    }
+  }, [project.startDate, setProject]);
+
+  //--------------------------------------------------------------------------
+  // Functions
+  //--------------------------------------------------------------------------
+
+  // Insert to field based on suggested output
+  const insertObjectives = () =>
+    setProject((p) => ({ ...p, measurableObjectives: suggestedObjectives }));
+  const insertDeliverables = () =>
+    setProject((p) => ({ ...p, deliverables: suggestedDeliverables }));
+  const insertOos = () =>
+    setProject((p) => ({ ...p, outOfScope: suggestedOos }));
+
+  // onChange of fields
+  const onChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setProject((p) => ({ ...p, [name]: value }));
+  };
 
   // Copy/Insert per section
   const copyWithHint = async (text: string, setFlag: (v: boolean) => void) => {
@@ -148,26 +131,81 @@ export default function InitiationSection({
     }
   };
 
-  const insertObjectives = () =>
-    setProject((p) => ({ ...p, measurableObjectives: suggestedObjectives }));
-  const insertDeliverables = () =>
-    setProject((p) => ({ ...p, deliverables: suggestedDeliverables }));
-  const insertOos = () =>
-    setProject((p) => ({ ...p, outOfScope: suggestedOos }));
+  const onGenerateObjectives = async () => {
+    const t0 = performance.now();
+    setObjError(null);
+    setFetchingObjectives(true);
+    setCopiedObj(false);
+    showBusy();
+    try {
+      const text = await generateObjectives(project as ProjectInit);
+      setSuggestedObjectives(text);
+      setShowSuggestionsObj(true);
+    } catch (err) {
+      setObjError("Failed to generate suggested objectives.");
+      console.error("Objectives API error:", err);
+    } finally {
+      setFetchingObjectives(false);
+      console.log(`Objectives took ${(performance.now() - t0) / 1000}s`);
+      hideBusy();
+    }
+  };
 
-  // ---------- render ----------
+  const onGenerateDeliverables = async () => {
+    const t0 = performance.now();
+    setDelivError(null);
+    setFetchingDeliverables(true);
+    setCopiedDeliv(false);
+    showBusy();
+    try {
+      const text = await generateDeliverables(project as ProjectInit);
+      setSuggestedDeliverables(text);
+      setShowSuggestionsDeliv(true);
+    } catch (err) {
+      setDelivError("Failed to generate suggested deliverables.");
+      console.error("Deliverables API error:", err);
+    } finally {
+      setFetchingDeliverables(false);
+      console.log(`Deliverables took ${(performance.now() - t0) / 1000}s`);
+      hideBusy();
+    }
+  };
+
+  const onGenerateOutOfScope = async () => {
+    const t0 = performance.now();
+    setOosError(null);
+    setFetchingOos(true);
+    setCopiedOos(false);
+    showBusy();
+    try {
+      const text = await generateOutOfScope(project as ProjectInit);
+      setSuggestedOos(text);
+      setShowSuggestionsOos(true);
+    } catch (err) {
+      setDelivError("Failed to generate suggested deliverables.");
+      console.error("Deliverables API error:", err);
+    } finally {
+      setFetchingDeliverables(false);
+      console.log(`Deliverables took ${(performance.now() - t0) / 1000}s`);
+      hideBusy();
+    }
+  };
+
+  //--------------------------------------------------------------------------
+  // Render
+  //--------------------------------------------------------------------------
   return (
-    <section className="mt-2 gap-0">
-      <SectionTitle title="I. Project Charter (Initiation)" />
+    <section className="mt-0 gap-0" id="sect-initiation">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Project Information</CardTitle>
+          <CardTitle>Project information</CardTitle>
+          <CardDescription>Basic details about the project</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-4">
             <div className="col-span-2 grid gap-1">
               <Label htmlFor="name">
-                Project Name <span className="text-red-500">*</span>
+                Project name <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="name"
@@ -182,14 +220,13 @@ export default function InitiationSection({
             </div>
 
             <div className="col-span-1 grid gap-1">
-              <Label htmlFor="creationDate">Start Date</Label>
+              <Label htmlFor="startDate">Start date</Label>
               <Input
-                id="creationDate"
+                id="startDate"
                 type="date"
-                name="creationDate"
-                value={project.creationDate ?? ""}
+                name="startDate"
+                value={project.startDate ?? ""}
                 onChange={onChange}
-                max={today}
                 disabled={lockActivity}
               />
             </div>
@@ -210,7 +247,7 @@ export default function InitiationSection({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-1">
-              <Label htmlFor="sponsor">Project Sponsor</Label>
+              <Label htmlFor="sponsor">Project sponsor</Label>
               <Input
                 id="sponsor"
                 name="sponsor"
@@ -222,7 +259,7 @@ export default function InitiationSection({
               />
             </div>
             <div className="grid gap-1">
-              <Label htmlFor="manager">Project Manager</Label>
+              <Label htmlFor="manager">Project manager</Label>
               <Input
                 id="manager"
                 name="manager"
@@ -237,7 +274,7 @@ export default function InitiationSection({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-1">
-              <Label htmlFor="businessNeed">Business Need/Problem</Label>
+              <Label htmlFor="businessNeed">Business need/Problem</Label>
               <Textarea
                 id="businessNeed"
                 name="businessNeed"
@@ -251,7 +288,7 @@ export default function InitiationSection({
             </div>
 
             <div className="grid gap-1">
-              <Label htmlFor="projectGoal">Project Goal</Label>
+              <Label htmlFor="projectGoal">Project goal</Label>
               <Textarea
                 id="projectGoal"
                 name="projectGoal"
@@ -269,7 +306,7 @@ export default function InitiationSection({
           <div className="grid gap-1">
             <div className="flex items-center justify-between">
               <Label htmlFor="measurableObjectives">
-                Measurable Objectives
+                Measurable objectives
               </Label>
               <div className="flex items-center gap-2">
                 {suggestedObjectives && (
@@ -293,7 +330,6 @@ export default function InitiationSection({
                   title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
                 >
                   <Sparkles className="mr-0 h-4 w-4" />
-                  {/* {fetchingObjectives ? "Generating…" : "Generate Objectives"} */}
                 </Button>
               </div>
             </div>
@@ -310,22 +346,19 @@ export default function InitiationSection({
             {objError ? (
               <p className="mt-1 text-xs text-red-500 italic">{objError}</p>
             ) : null}
+
+            {/* Note for suggestion */}
             {!lockActivity &&
             !fetchingObjectives &&
             !objError &&
             !canSuggest ? (
-              <p className="text-muted-foreground mt-1 text-xs">
-                Tip: Fill in <span className="font-medium">Project Name</span>,
-                <span className="font-medium"> Business Need</span>, or
-                <span className="font-medium"> Project Goal</span> to improve
-                the AI suggestion.
-              </p>
+              <SuggestionPrereqNote />
             ) : null}
 
             {showSuggestionsObj && suggestedObjectives && (
               <div className="bg-muted rounded-lg p-4">
                 <div className="mb-2 flex items-start justify-between">
-                  <h4 className="font-medium">Suggested Objectives</h4>
+                  <h4 className="font-medium">Suggested objectives</h4>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
@@ -357,11 +390,10 @@ export default function InitiationSection({
             )}
           </div>
 
-          {/* <div className="grid gap-4 md:grid-cols-2"> */}
           {/* Deliverables */}
           <div className="grid gap-1">
             <div className="flex items-center justify-between">
-              <Label htmlFor="deliverables">In-Scope Deliverables</Label>
+              <Label htmlFor="deliverables">In-scope deliverables</Label>
               <div className="flex items-center gap-2">
                 {suggestedDeliverables && (
                   <Button
@@ -381,12 +413,8 @@ export default function InitiationSection({
                   size="sm"
                   onClick={onGenerateDeliverables}
                   disabled={lockActivity || fetchingDeliverables || !canSuggest}
-                  title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
                 >
                   <Sparkles className="mr-0 h-4 w-4" />
-                  {/* {fetchingDeliverables
-                    ? "Generating…"
-                    : "Generate Deliverables"} */}
                 </Button>
               </div>
             </div>
@@ -400,14 +428,23 @@ export default function InitiationSection({
               maxLength={1000}
               disabled={lockActivity}
             />
+
             {delivError ? (
               <p className="mt-1 text-xs text-red-500 italic">{delivError}</p>
+            ) : null}
+
+            {/* Note for suggestion */}
+            {!lockActivity &&
+            !fetchingDeliverables &&
+            !delivError &&
+            !canSuggest ? (
+              <SuggestionPrereqNote />
             ) : null}
 
             {showSuggestionsDeliv && suggestedDeliverables && (
               <div className="bg-muted rounded-lg p-4">
                 <div className="mb-2 flex items-start justify-between">
-                  <h4 className="font-medium">Suggested Deliverables</h4>
+                  <h4 className="font-medium">Suggested deliverables</h4>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
@@ -439,10 +476,10 @@ export default function InitiationSection({
             )}
           </div>
 
-          {/* Out-of-Scope */}
+          {/* Out-of-scope */}
           <div className="grid gap-1">
             <div className="flex items-center justify-between">
-              <Label htmlFor="outOfScope">Out-of-Scope Items</Label>
+              <Label htmlFor="outOfScope">Out-of-scope items</Label>
               <div className="flex items-center gap-2">
                 {suggestedOos && (
                   <Button
@@ -462,10 +499,8 @@ export default function InitiationSection({
                   size="sm"
                   onClick={onGenerateOutOfScope}
                   disabled={lockActivity || fetchingOos || !canSuggest}
-                  title={!canSuggest ? "Fill Project Name/Need/Goal first" : ""}
                 >
                   <Sparkles className="mr-0 h-4 w-4" />
-                  {/* {fetchingOos ? "Generating…" : "Generate Out-of-Scope"} */}
                 </Button>
               </div>
             </div>
@@ -481,6 +516,11 @@ export default function InitiationSection({
             />
             {oosError ? (
               <p className="mt-1 text-xs text-red-500 italic">{oosError}</p>
+            ) : null}
+
+            {/* Note for suggestion */}
+            {!lockActivity && !fetchingOos && !oosError && !canSuggest ? (
+              <SuggestionPrereqNote />
             ) : null}
 
             {showSuggestionsOos && suggestedOos && (
@@ -515,9 +555,22 @@ export default function InitiationSection({
               </div>
             )}
           </div>
-          {/* </div> */}
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+//--------------------------------------------------------------------------
+// Subcomponent
+//--------------------------------------------------------------------------
+function SuggestionPrereqNote() {
+  return (
+    <p className="mt-1 text-xs text-blue-400 italic">
+      Note: Fill in <span className="font-medium">Project name</span>,
+      <span className="font-medium"> Business need/Problem</span>, or
+      <span className="font-medium"> Project goal</span> to enable the
+      suggestion.
+    </p>
   );
 }

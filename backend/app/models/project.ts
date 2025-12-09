@@ -1,8 +1,8 @@
-import { DateTime } from 'luxon'
 import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
-import type { HasMany } from '@adonisjs/lucid/types/relations'
 
+import { DateTime } from 'luxon'
 import Estimate from '#models/estimate'
+import type { HasMany } from '@adonisjs/lucid/types/relations'
 
 export default class Project extends BaseModel {
   @column({ isPrimary: true })
@@ -16,6 +16,12 @@ export default class Project extends BaseModel {
 
   @column()
   declare manager: string
+
+  @column()
+  declare version: string
+
+  @column.date()
+  declare startDate: DateTime
 
   @column()
   declare businessNeed: string

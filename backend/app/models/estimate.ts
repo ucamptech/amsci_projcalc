@@ -1,10 +1,10 @@
-import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
-import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 
 import Activity from '#models/activity'
-import Resource from '#models/resource'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { DateTime } from 'luxon'
 import Project from './project.js'
+import Resource from '#models/resource'
 
 export default class Estimate extends BaseModel {
   @column({ isPrimary: true })
@@ -21,6 +21,9 @@ export default class Estimate extends BaseModel {
 
   @column()
   declare mandays: number
+
+  @column.date()
+  declare startDate: DateTime
 
   @column.dateTime({ autoCreate: true, serializeAs: null })
   declare createdAt: DateTime

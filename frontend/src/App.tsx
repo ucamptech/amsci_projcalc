@@ -1,68 +1,90 @@
 import "./App.css";
 
 import { Navigate, Route, Routes } from "react-router-dom";
+import {
+  ProtectedRoute,
+  PublicRoute,
+} from "@/components/layouts/ProtectedRoute";
 
-import AuthLayout from "./layouts/AuthLayout";
-import Dashboard from "./pages/Dashboard";
-import Login from "./pages/auth/Login";
-import ProjectsCreate from "./pages/ProjectsCreate";
-import ProjectsList from "./pages/ProjectsList";
-import ProtectedRoute from "./layouts/ProtectedRoute";
+import { AuthLayout } from "@/components/layouts/AuthLayout";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { CreateProject } from "@/pages/CreateProject";
+import { Dashboard } from "@/pages/Dashboard";
+import { DashboardLayout } from "@/components/layouts/DashboardLayout";
+import { DashboardLayoutWithNotes } from "@/components/layouts/DashboardLayoutWithNotes";
+import { Login } from "@/pages/auth/Login";
+import { Projects } from "@/pages/Projects";
 
 function App() {
-  const token = localStorage.getItem("auth_token");
-
   return (
-    <Routes>
-      <Route element={<AuthLayout />}>
-        <Route path="/login" element={<Login />} />
-      </Route>
+    <AuthProvider>
+      <Routes>
+        {/* Public auth routes */}
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <AuthLayout>
+                <Login />
+              </AuthLayout>
+            </PublicRoute>
+          }
+        />
+        {/* <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <AuthLayout><Register /></AuthLayout>
+            </PublicRoute>
+          }
+        /> */}
 
-      <Route
-        path="/projects"
-        element={
-          <ProtectedRoute>
-            <ProjectsList />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/projects/create"
-        element={
-          <ProtectedRoute>
-            <ProjectsCreate />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/projects/:id"
-        element={
-          <ProtectedRoute>
-            <ProjectsCreate />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
+        {/* Protected dashboard routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Dashboard />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Projects />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:id"
+          element={
+            <ProtectedRoute>
+              <DashboardLayoutWithNotes>
+                <CreateProject />
+              </DashboardLayoutWithNotes>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/create"
+          element={
+            <ProtectedRoute>
+              <DashboardLayoutWithNotes>
+                <CreateProject />
+              </DashboardLayoutWithNotes>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/"
-        element={
-          token ? (
-            <Navigate to="/projects" replace />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Catch all - redirect to dashboard */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AuthProvider>
   );
 }
 
