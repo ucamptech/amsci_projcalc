@@ -46,7 +46,6 @@ export function Projects() {
     try {
       const res = (await getProjects(1)) as unknown as PaginatedProjects;
       setProjects(res.data ?? []);
-      toast.success("Successfully loaded");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load projects";
