@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import "./App.css";
 
 import { Navigate, Route, Routes } from "react-router-dom";
@@ -9,7 +10,7 @@ import {
 import { AuthLayout } from "@/components/layouts/AuthLayout";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CreateProject } from "@/pages/CreateProject";
-import { Dashboard } from "@/pages/Dashboard";
+import { Dashboard } from "./pages/Dashboard";
 import { DashboardLayout } from "@/components/layouts/DashboardLayout";
 import { DashboardLayoutWithNotes } from "@/components/layouts/DashboardLayoutWithNotes";
 import { Login } from "@/pages/auth/Login";
@@ -44,9 +45,10 @@ function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
+              <Navigate to="/projects" replace />
+              {/* <DashboardLayout>
                 <Dashboard />
-              </DashboardLayout>
+              </DashboardLayout> */}
             </ProtectedRoute>
           }
         />
@@ -54,9 +56,9 @@ function App() {
           path="/projects"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
+              <DashboardLayoutWithNotes>
                 <Projects />
-              </DashboardLayout>
+              </DashboardLayoutWithNotes>
             </ProtectedRoute>
           }
         />
@@ -81,8 +83,8 @@ function App() {
           }
         />
 
-        {/* Catch all - redirect to dashboard */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Catch all - redirect to projects */}
+        <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </AuthProvider>
   );

@@ -345,7 +345,7 @@ export function DashboardLayoutWithNotes({
           variant="secondary"
           size="sm"
           onClick={() => setIsNotesOpen(true)}
-          className="bg-background/95 fixed right-4 bottom-6 z-40 shadow"
+          className="bg-background/95 fixed right-4 bottom-12 z-40 shadow"
         >
           <StickyNote className="h-4 w-4" />
           Notes

@@ -19,7 +19,7 @@ export function PublicRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace state={{ from: location }} />;
+    return <Navigate to="/projects" replace state={{ from: location }} />;
   }
 
   return children;

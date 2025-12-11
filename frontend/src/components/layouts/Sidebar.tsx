@@ -1,4 +1,4 @@
-import { FolderKanban, LayoutDashboard, Plus, X } from "lucide-react";
+import { FolderKanban, Plus, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  // { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Projects", href: "/projects", icon: FolderKanban },
   { name: "Create new project", href: "/projects/create", icon: Plus },
 ];
