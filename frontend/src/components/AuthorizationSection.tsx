@@ -4,14 +4,14 @@ import SectionTitle from "./SectionTitle";
 
 export default function AuthorizationSection() {
   return (
-    <section className="mt-6">
+    <section className="mt-6 gap-0">
       <SectionTitle title="III. Authorization" />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Sign-off</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Role Name Signature Date
           </p>
         </CardContent>
