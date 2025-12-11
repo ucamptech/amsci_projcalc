@@ -4,7 +4,12 @@ const AUTH_USER_KEY = "pc_auth_user";
 let inMemoryToken: string | null = null;
 
 export function getAuthToken(): string | null {
-  return inMemoryToken;
+  if (inMemoryToken) return inMemoryToken;
+  if (typeof window === "undefined") return null;
+
+  const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+  inMemoryToken = stored;
+  return stored;
 }
 
 export function setAuthToken(token: string | null) {

@@ -16,8 +16,8 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   } else {
-    const default_token = `oat_MTI.SXpyeTRzMDFjOEJ4UjhUQS1jeUVQUVhsLXFjNXJ6SmZacjNQYmhrMzI2MDQ1NTI1NzE`;
-    config.headers.Authorization = `Bearer ${default_token}`;
+    // const default_token = `oat_MTI.SXpyeTRzMDFjOEJ4UjhUQS1jeUVQUVhsLXFjNXJ6SmZacjNQYmhrMzI2MDQ1NTI1NzE`;
+    // config.headers.Authorization = `Bearer ${default_token}`;
   }
   return config;
 });

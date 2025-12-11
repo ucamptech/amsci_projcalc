@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { clearToken, restoreTokenFromStorage } from "@/lib/api/auth";
 
 const STORAGE_KEY = "pc_is_authenticated";
 
@@ -20,6 +21,8 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
+    const token = restoreTokenFromStorage();
+    if (token) return true;
     return window.localStorage.getItem(STORAGE_KEY) === "true";
   });
 
@@ -32,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);
+    clearToken();
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
     }
