@@ -527,12 +527,12 @@ export function CreateProject() {
       </div>
 
       {/* Action Buttons */}
-      <div className="mt-4 mb-3 flex items-center justify-between">
+      <div className="mt-4 mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         {/* Left group */}
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button
             // variant="destructive"
-            className="bg-gray-500 text-white hover:bg-gray-600"
+            className="bg-gray-500 text-white hover:bg-gray-600 w-full sm:w-auto"
             onClick={handleClearDraft}
             title="Clear inputs and local draft"
           >
@@ -543,6 +543,7 @@ export function CreateProject() {
             variant="default"
             onClick={handleSaveDraft}
             title="Save to browser"
+            className="w-full sm:w-auto"
           >
             <Save className="mr-2 h-4 w-4" />
             Save draft
@@ -550,13 +551,21 @@ export function CreateProject() {
         </div>
 
         {/* Right group */}
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportPDF}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap md:justify-end">
+          <Button
+            variant="outline"
+            onClick={handleExportPDF}
+            className="w-full sm:w-auto"
+          >
             <FileText className="mr-2 h-4 w-4" />
             Export as PDF
           </Button>
 
-          <Button variant="outline" onClick={handleExportExcel}>
+          <Button
+            variant="outline"
+            onClick={handleExportExcel}
+            className="w-full sm:w-auto"
+          >
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             Export as Excel
           </Button>
@@ -565,7 +574,7 @@ export function CreateProject() {
             disabled={submitBusy || editLocked || finalCheckBusy}
             onClick={handleSubmit}
             title={editLocked ? "Unlock editing to save changes." : undefined}
-            className="bg-green-600 text-white hover:bg-green-700"
+            className="bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
           >
             {finalCheckBusy ? (
               <span className="flex items-center gap-2">

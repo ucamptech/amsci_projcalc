@@ -5,7 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Copy, Eye, Sparkles } from "lucide-react";
+import { Copy, Eye, EyeOff, Sparkles } from "lucide-react";
 import type { ProjectInit, WBSItem } from "@/types/project.type";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -172,18 +172,19 @@ export function GanttSection({
     <section className="mt-0 gap-0">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between gap-2">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
               <CardTitle>Gantt Chart</CardTitle>
               <CardDescription className="mt-2">
                 Visual timeline of project activities
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               <Button
                 onClick={generateGantt}
                 variant="default"
                 disabled={isBusy}
+                className="w-full sm:w-auto"
               >
                 <Sparkles className="mr-2 h-4 w-4" />
                 {isBusy ? "Generating…" : "Generate Gantt"}
@@ -191,22 +192,32 @@ export function GanttSection({
 
               <Button
                 variant="outline"
-                size="icon"
+                size="sm"
                 onClick={onCopy}
                 disabled={!mermaidCode}
                 aria-label="Copy Mermaid code"
+                className="w-full self-start sm:w-10 sm:justify-center sm:self-auto sm:px-0"
               >
                 <Copy className="h-4 w-4" />
+                <span className="ml-2 sm:hidden">Copy Mermaid code</span>
               </Button>
 
               <Button
                 variant="outline"
-                size="icon"
+                size="sm"
                 onClick={() => setShowRaw((v) => !v)}
                 disabled={!mermaidCode}
                 aria-label={showRaw ? "Hide Mermaid code" : "View Mermaid code"}
+                className="w-full self-start sm:w-10 sm:justify-center sm:self-auto sm:px-0"
               >
-                <Eye className="h-4 w-4" />
+                {showRaw ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+                <span className="ml-2 sm:hidden">
+                  {showRaw ? "Hide Mermaid code" : "Show Mermaid code"}
+                </span>
               </Button>
             </div>
           </div>

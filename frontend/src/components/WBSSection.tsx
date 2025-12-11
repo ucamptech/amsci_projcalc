@@ -174,7 +174,7 @@ export function WBSSection({
     <section className="mt-0 gap-0">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>
                 High-level WBS breakdown with estimated effort
@@ -183,9 +183,15 @@ export function WBSSection({
                 Define activities, resources, and effort estimation
               </CardDescription>
             </div>
-            <Button onClick={addWBSItem} size="sm" disabled={lockActivity}>
+            <Button
+              onClick={addWBSItem}
+              size="sm"
+              disabled={lockActivity}
+              className="w-full justify-center sm:w-auto"
+              aria-label="Add row"
+            >
               <Plus className="mr-2 h-4 w-4" />
-              Add row
+              <span>Add row</span>
             </Button>
           </div>
         </CardHeader>
