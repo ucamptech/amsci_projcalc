@@ -162,22 +162,24 @@ export async function exportProjectToExcel({
   const wbsStartRow = ws.rowCount + 1;
 
   wbs.forEach((r) => {
-    const fxMandays = Number.isFinite(r.fxMandays) ? r.fxMandays : 0;
-    const abapMandays = Number.isFinite(r.abapMandays) ? r.abapMandays : 0;
+    const fxMandays = Number(r.fxMandays) || 0;
+    const abapMandays = Number(r.abapMandays) || 0;
+    const fxValue = fxMandays === 0 ? "" : fxMandays;
+    const abapValue = abapMandays === 0 ? "" : abapMandays;
 
     const row = ws.addRow([
       r.wbsId ?? "",
       getActivityName(r.activityId),
       getResourceName(r.fxResourceId),
       r.fxStartDate ?? "",
-      fxMandays,
+      fxValue,
       getResourceName(r.abapResourceId),
       r.abapStartDate ?? "",
-      abapMandays,
+      abapValue,
     ]);
 
-    row.getCell(5).numFmt = "0.00";
-    row.getCell(8).numFmt = "0.00";
+    if (fxMandays !== 0) row.getCell(5).numFmt = "0.00";
+    if (abapMandays !== 0) row.getCell(8).numFmt = "0.00";
     setRowStyles(row);
   });
 
@@ -270,7 +272,34 @@ export async function exportProjectToExcel({
   const authHeader = ws.addRow(["Role", "Name", "Signature", "Date"]);
   setRowStyles(authHeader, { bold: true });
 
-  signers.forEach((s) => {
+  const requiredRoles = ["Project Management Office", "Project Sponsor"];
+  const normalizedSigners = [...signers];
+  requiredRoles.forEach((role) => {
+    const hasRole = normalizedSigners.some(
+      (s) => (s.role ?? "").toLowerCase() === role.toLowerCase(),
+    );
+    if (!hasRole) {
+      normalizedSigners.push({ role, name: "", signature: "", date: "" });
+    }
+  });
+
+  const orderedSigners = [
+    ...(requiredRoles
+      .map((role) =>
+        normalizedSigners.find(
+          (s) => (s.role ?? "").toLowerCase() === role.toLowerCase(),
+        ),
+      )
+      .filter(Boolean) as SignersInit[]),
+    ...normalizedSigners.filter(
+      (s) =>
+        !requiredRoles.some(
+          (role) => (s.role ?? "").toLowerCase() === role.toLowerCase(),
+        ),
+    ),
+  ];
+
+  orderedSigners.forEach((s) => {
     const row = ws.addRow([
       s.role ?? "",
       s.name ?? "",

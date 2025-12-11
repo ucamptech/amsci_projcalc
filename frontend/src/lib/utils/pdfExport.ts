@@ -143,19 +143,26 @@ export async function exportProjectToPdf(opts: {
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10);
-  const created = project.startDate || new Date().toISOString().slice(0, 10);
-  pdf.text(`Start date: ${created}`, margin, y);
-  y += 16;
-  if (project.sponsor) {
-    pdf.text(`Sponsor: ${project.sponsor}`, margin, y);
+
+  const drawLabelValue = (label: string, value: string) => {
+    pdf.setFont("helvetica", "bold");
+    pdf.text(label, margin, y);
+    const labelWidth = pdf.getTextWidth(label + " ");
+    pdf.setFont("helvetica", "normal");
+    pdf.text(value, margin + labelWidth, y);
     y += 16;
+  };
+
+  const created = project.startDate || new Date().toISOString().slice(0, 10);
+  drawLabelValue("Start date:", created);
+  if (project.sponsor) {
+    drawLabelValue("Sponsor:", project.sponsor);
   }
   if (project.manager) {
-    pdf.text(`Manager: ${project.manager}`, margin, y);
-    y += 16;
+    drawLabelValue("Manager:", project.manager);
   }
 
-  y += 8;
+  y += 14;
 
   /* ---------- Section I: Project Information ---------- */
   if (y > pageHeight - margin - 80) {
@@ -222,10 +229,10 @@ export async function exportProjectToPdf(opts: {
       r.wbsId || "",
       r.activity || "",
       r.fxStartDate || "",
-      r.fxMandays ? String(r.fxMandays) : "",
+      r.fxMandays ? fmt(Number(r.fxMandays)) : "",
       r.abapStartDate || "",
-      r.abapMandays ? String(r.abapMandays) : "",
-      total ? String(total) : "",
+      r.abapMandays ? fmt(Number(r.abapMandays)) : "",
+      total ? fmt(total) : "",
     ];
   });
 
@@ -237,10 +244,10 @@ export async function exportProjectToPdf(opts: {
     "Total",
     "",
     "",
-    String(fxTotal),
+    fmt(fxTotal),
     "",
-    String(abapTotal),
-    String(allTotal),
+    fmt(abapTotal),
+    fmt(allTotal),
   ];
   const bodyWithTotalMandays = [...wbsRows, totalsRow];
 
@@ -283,6 +290,8 @@ export async function exportProjectToPdf(opts: {
   });
   y = (pdf as any).lastAutoTable.finalY + 16;
 
+  y += 14;
+
   /* ---------- Section III: Cost Computation ---------- */
   if (y > pageHeight - margin - 80) {
     pdf.addPage();
@@ -296,9 +305,9 @@ export async function exportProjectToPdf(opts: {
   const costBody: RowInput[] = byResource.map((r) => [
     r.resourceName,
     r.resourceTitle,
-    fmt(r.rate),
-    r.mandays ? String(r.mandays) : "",
-    fmt(r.subtotal),
+    `PHP ${fmt(r.rate)}`,
+    r.mandays ? fmt(Number(r.mandays)) : "",
+    `PHP ${fmt(r.subtotal)}`,
   ]);
   const totalRate = byResource.reduce((s, r) => s + (Number(r.rate) || 0), 0);
   const totalMandays = byResource.reduce(
@@ -311,7 +320,13 @@ export async function exportProjectToPdf(opts: {
   );
 
   const totalRows: RowInput[] = [
-    ["Total", "", fmt(totalRate), String(totalMandays), fmt(totalCost)],
+    [
+      "Total",
+      "",
+      `PHP ${fmt(totalRate)}`,
+      fmt(Number(totalMandays)),
+      `PHP ${fmt(totalCost)}`,
+    ],
   ];
   const bodyWithTotals = [...costBody, ...totalRows];
 
@@ -336,7 +351,7 @@ export async function exportProjectToPdf(opts: {
     },
   });
   y = (pdf as any).lastAutoTable.finalY + 16;
-  y += 12;
+  y += 14;
 
   /* ---------- Section IV: Gantt Chart (Mermaid) ---------- */
   if (y > pageHeight - margin - 80) {
@@ -495,7 +510,7 @@ export async function exportProjectToPdf(opts: {
   }
 
   /* ---------- Section V: Authorization ---------- */
-  y += 20;
+  y += 14;
 
   if (y > pageHeight - margin - 80) {
     pdf.addPage();
