@@ -198,7 +198,7 @@ export function InitiationSection({
     <section className="mt-0 gap-0" id="sect-initiation">
       <Card>
         <CardHeader>
-          <CardTitle>Project information</CardTitle>
+          <CardTitle>I. Project information</CardTitle>
           <CardDescription>Basic details about the project</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

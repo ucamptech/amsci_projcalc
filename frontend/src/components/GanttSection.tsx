@@ -174,7 +174,7 @@ export function GanttSection({
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <CardTitle>Gantt Chart</CardTitle>
+              <CardTitle>IV. Gantt chart</CardTitle>
               <CardDescription className="mt-2">
                 Visual timeline of project activities
               </CardDescription>

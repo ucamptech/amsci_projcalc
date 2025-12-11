@@ -177,7 +177,7 @@ export function WBSSection({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>
-                High-level WBS breakdown with estimated effort
+                II. High-level WBS breakdown with estimated effort
               </CardTitle>
               <CardDescription className="mt-2">
                 Define activities, resources, and effort estimation

@@ -85,6 +85,7 @@ export function CostSection({
       resources.map((resource) => [resource.id, resource]),
     );
 
+    // Project Manager baseline row
     const rows: CostRow[] = [
       {
         key: "projectManager",
@@ -97,36 +98,48 @@ export function CostSection({
       },
     ];
 
+    // Aggregate by resource
+    const aggregated = new Map<string, CostRow>();
+
     items.forEach((item) => {
       if (item.fxResourceId) {
+        const key = `fx-${item.fxResourceId}`;
         const resource = resourceMap.get(item.fxResourceId);
         const rate = Number(resource?.cost ?? 0);
         const mandays = Number(item.fxMandays) || 0;
-        rows.push({
-          key: `fx-${item.fxResourceId}-${item.id}`,
+
+        const existing = aggregated.get(key);
+        aggregated.set(key, {
+          key,
           type: "FX",
           name: resource?.name ?? `Resource #${item.fxResourceId}`,
           title: resource?.title ?? resource?.name ?? "-",
-          baseRate: rate,
-          mandays,
+          baseRate: existing ? existing.baseRate : rate,
+          mandays: (existing?.mandays ?? 0) + mandays,
           isDefault: false,
         });
       }
+
       if (item.abapResourceId) {
+        const key = `abap-${item.abapResourceId}`;
         const resource = resourceMap.get(item.abapResourceId);
         const rate = Number(resource?.cost ?? 0);
         const mandays = Number(item.abapMandays) || 0;
-        rows.push({
-          key: `abap-${item.abapResourceId}-${item.id}`,
+
+        const existing = aggregated.get(key);
+        aggregated.set(key, {
+          key,
           type: "ABAP",
           name: resource?.name ?? `Resource #${item.abapResourceId}`,
           title: resource?.title ?? resource?.name ?? "-",
-          baseRate: rate,
-          mandays,
+          baseRate: existing ? existing.baseRate : rate,
+          mandays: (existing?.mandays ?? 0) + mandays,
           isDefault: false,
         });
       }
     });
+
+    rows.push(...aggregated.values());
     return rows;
   };
 
@@ -168,7 +181,7 @@ export function CostSection({
     <section className="mt-0 gap-0">
       <Card>
         <CardHeader>
-          <CardTitle>Cost Breakdown</CardTitle>
+          <CardTitle>III. Cost breakdown</CardTitle>
           <CardDescription>
             Calculated costs based on resource rates and mandays
           </CardDescription>

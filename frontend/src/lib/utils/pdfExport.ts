@@ -20,6 +20,53 @@ function fmt(n: number) {
   }).format(n);
 }
 
+function aggregateResources(rows: CostByResource[]) {
+  const merged = new Map<
+    string,
+    {
+      resourceId?: number;
+      resourceName: string;
+      resourceTitle: string;
+      mandays: number;
+      subtotal: number;
+      rate: number;
+    }
+  >();
+
+  for (const r of rows) {
+    const key =
+      r.resourceId !== undefined && r.resourceId !== null
+        ? String(r.resourceId)
+        : `${r.resourceName}|${r.resourceTitle}`;
+
+    const existing = merged.get(key);
+    const mandays = Number(r.mandays) || 0;
+    const subtotal = Number(r.subtotal) || 0;
+    const rate = Number(r.rate) || 0;
+
+    if (existing) {
+      existing.mandays += mandays;
+      existing.subtotal += subtotal;
+      // Prefer an existing rate; if missing, use current rate
+      if (!existing.rate && rate) existing.rate = rate;
+    } else {
+      merged.set(key, {
+        resourceId: r.resourceId,
+        resourceName: r.resourceName,
+        resourceTitle: r.resourceTitle,
+        mandays,
+        subtotal,
+        rate,
+      });
+    }
+  }
+
+  return Array.from(merged.values()).map((row) => ({
+    ...row,
+    rate: row.mandays > 0 ? row.subtotal / row.mandays : row.rate || 0,
+  }));
+}
+
 async function urlToDataUrl(url: string): Promise<string> {
   const res = await fetch(url);
   const blob = await res.blob();
@@ -173,7 +220,7 @@ export async function exportProjectToPdf(opts: {
   }
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(12);
-  pdf.text("I. Project information", margin, y);
+  pdf.text("I. Project Information", margin, y);
   y += 14;
 
   pdf.setFont("helvetica", "normal");
@@ -222,7 +269,7 @@ export async function exportProjectToPdf(opts: {
   }
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(12);
-  pdf.text("II. High-Level WBS with Estimated Effort", margin, y);
+  pdf.text("II. High-level WBS Breakdown with Estimated Effort", margin, y);
   y += 10;
 
   const wbsRows: RowInput[] = wbs.map((r) => {
@@ -300,22 +347,27 @@ export async function exportProjectToPdf(opts: {
   }
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(12);
-  pdf.text("III. Cost Computation", margin, y);
+  pdf.text("III. Cost Breakdown", margin, y);
   y += 10;
 
-  const costBody: RowInput[] = byResource.map((r) => [
+  const aggregatedResources = aggregateResources(byResource);
+
+  const costBody: RowInput[] = aggregatedResources.map((r) => [
     r.resourceName,
     r.resourceTitle,
     `PHP ${fmt(r.rate)}`,
     r.mandays ? fmt(Number(r.mandays)) : "",
     `PHP ${fmt(r.subtotal)}`,
   ]);
-  const totalRate = byResource.reduce((s, r) => s + (Number(r.rate) || 0), 0);
-  const totalMandays = byResource.reduce(
+  const totalRate = aggregatedResources.reduce(
+    (s, r) => s + (Number(r.rate) || 0),
+    0,
+  );
+  const totalMandays = aggregatedResources.reduce(
     (s, r) => s + (Number(r.mandays) || 0),
     0,
   );
-  const totalCost = byResource.reduce(
+  const totalCost = aggregatedResources.reduce(
     (s, r) => s + (Number(r.subtotal) || 0),
     0,
   );

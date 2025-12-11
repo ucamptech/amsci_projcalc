@@ -8,6 +8,52 @@ import { DEFAULT_ACTIVITIES, DEFAULT_RESOURCES } from "../constants/project";
 
 import ExcelJS from "exceljs";
 
+function aggregateResources(rows: CostByResource[]) {
+  const merged = new Map<
+    string,
+    {
+      resourceId?: number;
+      resourceName: string;
+      resourceTitle: string;
+      mandays: number;
+      subtotal: number;
+      rate: number;
+    }
+  >();
+
+  for (const r of rows) {
+    const key =
+      r.resourceId !== undefined && r.resourceId !== null
+        ? String(r.resourceId)
+        : `${r.resourceName}|${r.resourceTitle}`;
+
+    const existing = merged.get(key);
+    const mandays = Number(r.mandays) || 0;
+    const subtotal = Number(r.subtotal) || 0;
+    const rate = Number(r.rate) || 0;
+
+    if (existing) {
+      existing.mandays += mandays;
+      existing.subtotal += subtotal;
+      if (!existing.rate && rate) existing.rate = rate;
+    } else {
+      merged.set(key, {
+        resourceId: r.resourceId,
+        resourceName: r.resourceName,
+        resourceTitle: r.resourceTitle,
+        mandays,
+        subtotal,
+        rate,
+      });
+    }
+  }
+
+  return Array.from(merged.values()).map((row) => ({
+    ...row,
+    rate: row.mandays > 0 ? row.subtotal / row.mandays : row.rate || 0,
+  }));
+}
+
 type Props = {
   project: ProjectInit;
   wbs: WBSItem[];
@@ -221,7 +267,9 @@ export async function exportProjectToExcel({
 
   const compStartRow = ws.rowCount + 1;
 
-  byResource.forEach((r) => {
+  const aggregatedResources = aggregateResources(byResource);
+
+  aggregatedResources.forEach((r) => {
     const currentRow = ws.rowCount + 1;
     const row = ws.addRow([
       r.resourceName ?? "",
