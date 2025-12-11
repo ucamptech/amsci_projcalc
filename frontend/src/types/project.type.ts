@@ -13,6 +13,8 @@ export interface ProjectInit {
   measurableObjectives?: string;
   deliverables?: string;
   outOfScope?: string;
+  pmRate?: number | null;
+  pmMandays?: number | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -46,6 +48,7 @@ export interface EstimatePayload {
   activityId: number;
   mandays: number;
   startDate?: string | null;
+  rate?: number | null;
 }
 
 export interface Estimate extends EstimatePayload {
@@ -65,6 +68,8 @@ export interface ProjectPayload {
   measurableObjectives?: string;
   deliverables?: string;
   outOfScope?: string;
+  pmRate?: number | null;
+  pmMandays?: number | null;
   estimates: EstimatePayload[];
 }
 

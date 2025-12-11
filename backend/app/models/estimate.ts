@@ -22,6 +22,9 @@ export default class Estimate extends BaseModel {
   @column()
   declare mandays: number
 
+  @column()
+  declare rate: number | null
+
   @column.date()
   declare startDate: DateTime
 

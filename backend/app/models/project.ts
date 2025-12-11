@@ -38,6 +38,12 @@ export default class Project extends BaseModel {
   @column()
   declare outOfScope: string
 
+  @column()
+  declare pmRate: number | null
+
+  @column()
+  declare pmMandays: number | null
+
   @hasMany(() => Estimate)
   declare estimates: HasMany<typeof Estimate>
 

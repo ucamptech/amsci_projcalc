@@ -149,30 +149,40 @@ export function CreateProject() {
       },
     ];
 
+    const aggregated = new Map<string, (typeof rows)[number]>();
+
     wbsItems.forEach((item) => {
       if (item.fxResourceId) {
         const resource = resourceMap.get(item.fxResourceId);
-        rows.push({
-          key: `fx-${item.fxResourceId}-${item.id}`,
+        const key = `fx-${item.fxResourceId}`;
+        const existing = aggregated.get(key);
+        const mandays = Number(item.fxMandays) || 0;
+        aggregated.set(key, {
+          key,
           name: resource?.name ?? `Resource #${item.fxResourceId}`,
           title: resource?.title ?? resource?.name ?? "-",
           baseRate: Number(resource?.cost ?? 0),
-          mandays: Number(item.fxMandays) || 0,
+          mandays: (existing?.mandays ?? 0) + mandays,
           resourceId: item.fxResourceId,
         });
       }
       if (item.abapResourceId) {
         const resource = resourceMap.get(item.abapResourceId);
-        rows.push({
-          key: `abap-${item.abapResourceId}-${item.id}`,
+        const key = `abap-${item.abapResourceId}`;
+        const existing = aggregated.get(key);
+        const mandays = Number(item.abapMandays) || 0;
+        aggregated.set(key, {
+          key,
           name: resource?.name ?? `Resource #${item.abapResourceId}`,
           title: resource?.title ?? resource?.name ?? "-",
           baseRate: Number(resource?.cost ?? 0),
-          mandays: Number(item.abapMandays) || 0,
+          mandays: (existing?.mandays ?? 0) + mandays,
           resourceId: item.abapResourceId,
         });
       }
     });
+
+    rows.push(...aggregated.values());
 
     return rows.map((row, idx) => {
       const rate =
@@ -194,22 +204,42 @@ export function CreateProject() {
   };
 
   const buildProjectPayload = (): ProjectPayload => {
+    const resourceList = resources?.length ? resources : DEFAULT_RESOURCES;
+    const resourceMap = new Map<number, Resource>(
+      resourceList.map((r) => [r.id, r]),
+    );
+
+    const getRateForKey = (
+      key: string,
+      resourceId: number | null | undefined,
+    ) => {
+      if (rateOverrides[key] !== undefined) return rateOverrides[key];
+      if (resourceId && resourceMap.has(resourceId)) {
+        return Number(resourceMap.get(resourceId)?.cost ?? 0);
+      }
+      return 0;
+    };
+
     const estimates = wbsItems.flatMap((item) => {
       const rows: ProjectPayload["estimates"] = [];
       if (item.fxResourceId) {
+        const rateKey = `fx-${item.fxResourceId}`;
         rows.push({
           activityId: item.activityId,
           resourceId: item.fxResourceId,
           mandays: Number(item.fxMandays) || 0,
           startDate: item.fxStartDate || null,
+          rate: getRateForKey(rateKey, item.fxResourceId),
         });
       }
       if (item.abapResourceId) {
+        const rateKey = `abap-${item.abapResourceId}`;
         rows.push({
           activityId: item.activityId,
           resourceId: item.abapResourceId,
           mandays: Number(item.abapMandays) || 0,
           startDate: item.abapStartDate || null,
+          rate: getRateForKey(rateKey, item.abapResourceId),
         });
       }
       return rows;
@@ -219,6 +249,14 @@ export function CreateProject() {
       name: project.name,
       sponsor: project.sponsor,
       manager: project.manager,
+      pmRate:
+        rateOverrides.projectManager !== undefined
+          ? rateOverrides.projectManager
+          : null,
+      pmMandays:
+        mandayOverrides.projectManager !== undefined
+          ? mandayOverrides.projectManager
+          : null,
       version: project.version || undefined,
       startDate: project.startDate || undefined,
       businessNeed: project.businessNeed || undefined,
@@ -438,12 +476,10 @@ export function CreateProject() {
           ],
         });
       }
-      toast.success(message);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to submit project";
       setStatusModal({ type: "error", message });
-      toast.error(message);
     } finally {
       setSubmitBusy(false);
       hideBusy();
@@ -532,7 +568,7 @@ export function CreateProject() {
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button
             // variant="destructive"
-            className="bg-gray-500 text-white hover:bg-gray-600 w-full sm:w-auto"
+            className="w-full bg-gray-500 text-white hover:bg-gray-600 sm:w-auto"
             onClick={handleClearDraft}
             title="Clear inputs and local draft"
           >
@@ -574,7 +610,7 @@ export function CreateProject() {
             disabled={submitBusy || editLocked || finalCheckBusy}
             onClick={handleSubmit}
             title={editLocked ? "Unlock editing to save changes." : undefined}
-            className="bg-green-600 text-white hover:bg-green-700 w-full sm:w-auto"
+            className="w-full bg-green-600 text-white hover:bg-green-700 sm:w-auto"
           >
             {finalCheckBusy ? (
               <span className="flex items-center gap-2">
