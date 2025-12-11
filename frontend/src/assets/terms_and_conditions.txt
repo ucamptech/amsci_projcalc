@@ -1,0 +1,72 @@
+1. INTRODUCTION
+   These Terms and Conditions ("Terms") govern the engagement between the Client and the Project Team for the 
+   development and delivery of the proposed project ("Project"). By accepting this proposal, the Client agrees 
+   to be bound by all provisions outlined in this section.
+
+2. SCOPE OF WORK
+   2.1. The Project Team shall perform the tasks, deliverables, and milestones stated in Section II (Project Scope) 
+         of this proposal.
+   2.2. Any work requested by the Client that falls outside the defined scope shall be considered "Out-of-Scope Work" 
+         and may require a separate quotation or Change Request approval.
+
+3. PROJECT TIMELINE AND DELIVERABLES
+   3.1. The estimated timeline and delivery dates are outlined in Section III of this proposal.
+   3.2. Timelines may adjust depending on Client response time, additional requests, or unavoidable technical 
+         circumstances.
+   3.3. Delays caused directly or indirectly by the Client may result in adjusted deadlines.
+
+4. CLIENT RESPONSIBILITIES
+   4.1. The Client shall provide all necessary information, access, documentation, and approvals as required to 
+         complete the Project.
+   4.2. Failure to provide timely feedback may cause delays for which the Project Team is not liable.
+
+5. PAYMENT TERMS
+   5.1. Payment structure, amounts, and schedule are outlined in Section V (Cost & Payment Terms).
+   5.2. All payments must be settled on or before the agreed due dates.
+   5.3. Late payments may result in suspension of work until payment is received.
+
+6. CHANGE REQUEST POLICY
+   6.1. Any modification, addition, or removal of functionality after proposal acceptance requires a formal 
+         Change Request (CR).
+   6.2. The Project Team reserves the right to assess effort, impact, and cost before approving a CR.
+
+7. INTELLECTUAL PROPERTY
+   7.1. Upon full payment, the Client shall own the final output of the Project (e.g., source code, documents, 
+         designs) unless otherwise stated.
+   7.2. The Project Team retains ownership of internal tools, frameworks, or libraries used to develop the Project.
+
+8. CONFIDENTIALITY
+   8.1. All information shared between both parties shall remain confidential and used solely for Project execution.
+   8.2. Confidential information shall not be disclosed to any third party without written consent.
+
+9. DATA PRIVACY
+   9.1. The Project Team shall take reasonable measures to protect Client data.
+   9.2. The Client is responsible for ensuring that any data provided complies with applicable data privacy laws.
+
+10. WARRANTY AND SUPPORT
+   10.1. The Project Team provides a warranty period of thirty (30) days upon final turnover for addressing bugs 
+         or defects directly related to delivered features.
+   10.2. Enhancements, new features, or post-warranty support are subject to separate billing.
+
+11. LIMITATION OF LIABILITY
+   11.1. The Project Team shall not be liable for any indirect, incidental, or consequential damages arising from 
+         the Client’s use of the delivered output.
+   11.2. The maximum liability of the Project Team is limited to the total amount paid by the Client under this 
+         proposal.
+
+12. TERMINATION
+   12.1. Either party may terminate the engagement with written notice of at least fifteen (15) days.
+   12.2. The Client shall pay for all completed work and work-in-progress up to the termination date.
+
+13. ACCEPTANCE
+   13.1. Acceptance of the Project shall occur after the Client reviews the final deliverables and confirms that 
+         they meet the agreed requirements.
+   13.2. Silence or lack of feedback for more than ten (10) business days after turnover shall be deemed acceptance.
+
+14. GOVERNING LAW
+   14.1. These Terms shall be governed by and interpreted under the laws of the Republic of the Philippines, unless 
+         otherwise specified.
+
+15. AGREEMENT
+   By approving this proposal, the Client acknowledges and agrees to all Terms and Conditions outlined in this 
+   section.

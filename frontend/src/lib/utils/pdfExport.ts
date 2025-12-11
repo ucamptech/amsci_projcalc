@@ -11,6 +11,7 @@ import type {
 /* ---------- Company Branding ---------- */
 const COMPANY_NAME = "ACEA Managed Services and Consulting, Inc.";
 const LOGO_URL = "/amsci-logo.png";
+const TERMS_PATH = "/src/assets/terms_and_conditions.txt";
 
 function fmt(n: number) {
   return new Intl.NumberFormat(undefined, {
@@ -36,6 +37,7 @@ export async function exportProjectToPdf(opts: {
   byResource: CostByResource[];
   ganttSvgSelector?: string; // default '#pc-gantt svg'
   ganttMermaidCode?: string | null;
+  termsText?: string; // Optional override for terms and conditions
 }) {
   const timestamp = Date.now();
   const baseName = "project-charter";
@@ -289,7 +291,6 @@ export async function exportProjectToPdf(opts: {
     },
   });
   y = (pdf as any).lastAutoTable.finalY + 16;
-
   y += 14;
 
   /* ---------- Section III: Cost Computation ---------- */
@@ -509,8 +510,59 @@ export async function exportProjectToPdf(opts: {
     y += 28;
   }
 
-  /* ---------- Section V: Authorization ---------- */
   y += 14;
+
+  /* ---------- Section V/VI: Terms and Conditions ---------- */
+  // Load terms from passed-in prop or fetch from static file
+  let termsContent: string | undefined = opts.termsText?.trim();
+  if (!termsContent) {
+    try {
+      const termsRes = await fetch(TERMS_PATH);
+      termsContent = await termsRes.text();
+    } catch (err) {
+      console.warn("Failed to load terms_and_conditions.txt", err);
+    }
+  }
+
+  const safeTerms = termsContent ?? "";
+  const hasTerms = safeTerms.trim().length > 0;
+
+  if (hasTerms) {
+    if (y > pageHeight - margin - 120) {
+      pdf.addPage();
+      y = margin + headerHeight;
+    }
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(12);
+    pdf.text("V. Terms and Conditions", margin, y);
+    y += 14;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    const textWidth = pageWidth - margin * 2;
+    const paragraphs = safeTerms
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    paragraphs.forEach((paragraph, idx) => {
+      const paraLines = pdf.splitTextToSize(paragraph, textWidth);
+      const paraHeight = paraLines.length * 12;
+      if (y + paraHeight > pageHeight - margin - footerHeight) {
+        pdf.addPage();
+        y = margin + headerHeight;
+      }
+      pdf.text(paragraph, margin, y, {
+        maxWidth: textWidth,
+      });
+      y += paraHeight + 6;
+      if (idx !== paragraphs.length - 1) y += 2;
+    });
+    y += 12;
+  }
+
+  /* ---------- Section V/VI: Authorization ---------- */
+  const authSectionLabel = hasTerms ? "VI" : "V";
 
   if (y > pageHeight - margin - 80) {
     pdf.addPage();
@@ -518,7 +570,7 @@ export async function exportProjectToPdf(opts: {
   }
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(12);
-  pdf.text("V. Authorization", margin, y);
+  pdf.text(`${authSectionLabel}. Authorization`, margin, y);
   y += 10;
 
   const authRows: RowInput[] = [
@@ -541,6 +593,7 @@ export async function exportProjectToPdf(opts: {
     },
   });
   y = (pdf as any).lastAutoTable.finalY + 16;
+  y += 14;
 
   /* ---------- Paint header & footer on all pages ---------- */
   const pageCount = pdf.getNumberOfPages();
