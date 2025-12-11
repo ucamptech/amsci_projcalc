@@ -84,6 +84,8 @@ export function CreateProject() {
     withBusy,
     setProject,
     setWbsItems,
+    setRateOverrides,
+    setMandayOverrides,
     onMissingProject: () => {
       navigate("/projects");
     },

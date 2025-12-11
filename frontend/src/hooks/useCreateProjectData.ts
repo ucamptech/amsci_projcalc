@@ -27,6 +27,8 @@ type LoadProjectParams = {
   withBusy: WithBusy;
   setProject: Dispatch<SetStateAction<ProjectInit>>;
   setWbsItems: Dispatch<SetStateAction<WBSItem[]>>;
+  setRateOverrides?: Dispatch<SetStateAction<Record<string, number>>>;
+  setMandayOverrides?: Dispatch<SetStateAction<Record<string, number>>>;
   onMissingProject?: () => void;
 };
 
@@ -70,6 +72,8 @@ export function useLoadProject({
   withBusy,
   setProject,
   setWbsItems,
+  setRateOverrides,
+  setMandayOverrides,
   onMissingProject,
 }: LoadProjectParams) {
   useEffect(() => {
@@ -99,6 +103,14 @@ export function useLoadProject({
           measurableObjectives: proj.measurableObjectives ?? "",
           deliverables: proj.deliverables ?? "",
           outOfScope: proj.outOfScope ?? "",
+          pmRate:
+            proj.pmRate !== undefined && proj.pmRate !== null
+              ? Number(proj.pmRate)
+              : null,
+          pmMandays:
+            proj.pmMandays !== undefined && proj.pmMandays !== null
+              ? Number(proj.pmMandays)
+              : null,
           createdAt: proj.createdAt ?? "",
           updatedAt: proj.updatedAt ?? "",
         });
@@ -154,6 +166,45 @@ export function useLoadProject({
             ? Array.from(grouped.values())
             : WBSITEMS_INIT;
         });
+
+        // Seed rate and PM manday overrides
+        if (setRateOverrides) {
+          const rateMap: Record<string, number> = {};
+          if (proj.pmRate !== undefined && proj.pmRate !== null) {
+            rateMap.projectManager = Number(proj.pmRate);
+          }
+
+          proj.estimates?.forEach((estimate) => {
+            const resourceType = estimate.resource?.resourceType?.name;
+            const rateVal =
+              estimate.rate !== undefined && estimate.rate !== null
+                ? Number(estimate.rate)
+                : undefined;
+            if (!rateVal) return;
+
+            if (resourceType === RESOURCE_TYPE.Functional && estimate.resourceId) {
+              rateMap[`fx-${estimate.resourceId}`] = rateVal;
+            } else if (
+              resourceType === RESOURCE_TYPE.Technical &&
+              estimate.resourceId
+            ) {
+              rateMap[`abap-${estimate.resourceId}`] = rateVal;
+            }
+          });
+
+          setRateOverrides((prev) => ({ ...prev, ...rateMap }));
+        }
+
+        if (
+          setMandayOverrides &&
+          proj.pmMandays !== undefined &&
+          proj.pmMandays !== null
+        ) {
+          setMandayOverrides((prev) => ({
+            ...prev,
+            projectManager: Number(proj.pmMandays),
+          }));
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to load project";

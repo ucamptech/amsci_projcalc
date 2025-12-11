@@ -81,6 +81,8 @@ export interface Project extends Omit<ProjectPayload, "estimates"> {
 }
 
 export interface ProjectDetail {
+  pmRate: number;
+  pmMandays: number;
   id?: number;
   name: string;
   sponsor: string;
