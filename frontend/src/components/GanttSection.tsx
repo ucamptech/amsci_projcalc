@@ -1,64 +1,66 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Copy, Eye, Sparkles } from "lucide-react";
-import type { ProjectInit, WbsRow } from "@/data/types";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ProjectInit, WBSItem } from "@/types/project.type";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { Activity } from "@/types/activity.type";
 import { Button } from "@/components/ui/button";
-import SectionTitle from "./SectionTitle";
-import { generateGanttMermaid } from "@/api/api_ai";
+import { generateGanttMermaid } from "@/lib/api/ai.api";
 import mermaid from "mermaid";
-import { useBusyOverlay } from "./BusyOverlayProvider";
+import { toast } from "sonner";
+import { useBusyOverlay } from "@/contexts/BusyOverlayContext";
 
-type Props = {
-  project: Pick<
-    ProjectInit,
-    "name" | "businessNeed" | "projectGoal" | "creationDate"
-  >;
-  wbsRows: Pick<WbsRow, "activity" | "fxMandays" | "abapMandays">[];
-  onMermaidCodeChange?: (code: string) => void;
-};
+const SAMPLE_GANTT = `gantt
+  title Project Gantt Chart
+  dateFormat  YYYY-MM-DD
+  section Initiation
+  Requirements Gathering    :a1, 2025-11-06, 10d
+  section Design
+  Design Phase              :a2, 2025-11-16, 15d
+  section Development
+  Development Phase         :a3, after a2, 30d
+  section Testing
+  Testing Phase             :a4, after a3, 10d
+  section Deployment
+  Deployment                :a5, after a4, 5d`;
 
 function extractMermaidBlock(text: string): string {
   const match = text.match(/```mermaid([\s\S]*?)```/i);
   return match ? match[1].trim() : text.trim();
 }
 
-function debounce<T extends (...args: unknown[]) => void>(fn: T, ms = 150) {
-  let t: number | undefined;
-  return (...args: Parameters<T>) => {
-    window.clearTimeout(t);
-    t = window.setTimeout(() => fn(...args), ms);
-  };
-}
+type GanttSectionProps = {
+  project?: ProjectInit;
+  wbsItems?: WBSItem[];
+  activities?: Activity[];
+  onMermaidChange?: (code: string) => void;
+};
 
-export default function GanttSection({
+export function GanttSection({
   project,
-  wbsRows,
-  onMermaidCodeChange,
-}: Props) {
-  const { begin, end } = useBusyOverlay();
-
-  const [busy, setBusy] = useState(false);
+  wbsItems,
+  activities,
+  onMermaidChange,
+}: GanttSectionProps = {}) {
   const [error, setError] = useState<string | null>(null);
   const [mermaidCode, setMermaidCode] = useState<string>("");
   const [showRaw, setShowRaw] = useState(false);
 
+  //--------------------------------------------------------------------------
+  // Helpers
+  //--------------------------------------------------------------------------
+
+  const { showBusy, hideBusy, isBusy } = useBusyOverlay();
+
   const mermaidContainer = useRef<HTMLDivElement>(null);
-  const lastRenderId = useRef<string>("");
 
-  const taskCount = useMemo(
-    () =>
-      wbsRows.filter(
-        (r) =>
-          (r.activity || "").trim() &&
-          Number(r.fxMandays) + Number(r.abapMandays) > 0,
-      ).length,
-    [wbsRows],
-  );
-  console.log("Task count: ", taskCount);
-
-  // Initialize Mermaid with current theme
+  // Initialize Mermaid (same config style as your reference file)
   const initMermaid = useCallback(() => {
     mermaid.initialize({
       startOnLoad: false,
@@ -81,12 +83,15 @@ export default function GanttSection({
     initMermaid();
   }, [initMermaid]);
 
-  // Render helper
+  useEffect(() => {
+    onMermaidChange?.(mermaidCode);
+  }, [mermaidCode, onMermaidChange]);
+
   const renderMermaid = useCallback(async () => {
     if (!mermaidCode || !mermaidContainer.current || showRaw) return;
+
     try {
       const id = "gantt_" + Date.now().toString(36);
-      lastRenderId.current = id;
       const { svg } = await mermaid.render(id, mermaidCode);
 
       if (mermaidContainer.current) {
@@ -94,140 +99,120 @@ export default function GanttSection({
       }
     } catch (err) {
       console.error("Mermaid render error:", err);
+      setError("Failed to render Gantt chart.");
     }
   }, [mermaidCode, showRaw]);
 
-  // Render when code or showRaw changes
   useEffect(() => {
     void renderMermaid();
   }, [renderMermaid]);
 
-  // Auto-resize
-  useEffect(() => {
-    if (!mermaidContainer.current) return;
-    const el = mermaidContainer.current;
-
-    const rerender = debounce(() => {
-      initMermaid();
-      void renderMermaid();
-    }, 150);
-
-    const ro = new ResizeObserver(rerender);
-    ro.observe(el);
-
-    const onWin = debounce(() => {
-      initMermaid();
-      void renderMermaid();
-    }, 150);
-    window.addEventListener("resize", onWin);
-
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", onWin);
-    };
-  }, [initMermaid, renderMermaid]);
-
-  async function onGenerate() {
-    setBusy(true);
+  const generateGantt = async () => {
     setError(null);
-    begin();
-    try {
-      const text = await generateGanttMermaid(
-        {
-          name: project.name,
-          businessNeed: project.businessNeed,
-          projectGoal: project.projectGoal,
-          creationDate: project.creationDate,
-        },
-        wbsRows.map((r) => ({
-          activity: r.activity,
-          fxMandays: r.fxMandays,
-          abapMandays: r.abapMandays,
-        })),
-      );
+    showBusy();
 
-      //   const text = `gantt
-      // title Project Gantt Chart
-      // dateFormat  YYYY-MM-DD
-      // section Initiation
-      // Requirements Gathering    :a1, 2025-11-06, 10d
-      // section Design
-      // Design Phase              :a2, after a1, 15d
-      // section Development
-      // Development Phase         :a3, after a2, 30d
-      // section Testing
-      // Testing Phase             :a4, after a3, 10d
-      // section Deployment
-      // Deployment                :a5, after a4, 5d`;
-      const code = extractMermaidBlock(text);
+    try {
+      let code: string;
+
+      if (project && wbsItems?.length) {
+        const activityMap = new Map<number, string>();
+        activities?.forEach((activity) => {
+          if (activity?.id) {
+            activityMap.set(activity.id, activity.activity ?? "");
+          }
+        });
+
+        const wbsMinimal = wbsItems.map((item) => ({
+          activity:
+            activityMap.get(item.activityId) ||
+            item.wbsId ||
+            `Activity ${item.activityId ?? ""}`.trim(),
+          fxMandays: item.fxMandays,
+          abapMandays: item.abapMandays,
+          fxStartDate: item.fxStartDate,
+          abapStartDate: item.abapStartDate,
+        }));
+        const mermaidCode = await generateGanttMermaid(
+          {
+            name: project.name,
+            businessNeed: project.businessNeed,
+            projectGoal: project.projectGoal,
+            creationDate: project.startDate,
+          },
+          wbsMinimal,
+        );
+        code = extractMermaidBlock(mermaidCode);
+      } else {
+        const text = SAMPLE_GANTT;
+        code = extractMermaidBlock(text);
+      }
 
       setMermaidCode(code);
-      onMermaidCodeChange?.(code);
       setShowRaw(false);
       initMermaid();
       void renderMermaid();
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to generate Gantt chart.";
-      setError("Failed to generate Gantt chart.");
-      console.error("Gantt chart API error:", msg);
-    } finally {
-      setBusy(false);
-      end();
-    }
-  }
 
-  function onCopy() {
+      toast.success("Gantt chart generated");
+    } catch (err) {
+      console.error("Gantt chart generate error:", err);
+      setError("Failed to generate Gantt chart.");
+      toast.error("Failed to generate Gantt chart");
+    } finally {
+      hideBusy();
+    }
+  };
+
+  const onCopy = () => {
     if (!mermaidCode) return;
     void navigator.clipboard.writeText("```mermaid\n" + mermaidCode + "\n```");
-  }
+    toast.success("Mermaid code copied to clipboard");
+  };
 
   return (
-    <section className="mt-6 gap-0">
-      <SectionTitle title="IV. Gantt Chart" />
+    <section className="mt-0 gap-0">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div>
-            <p className="text-muted-foreground text-sm">
-              Generates and displays a Mermaid Gantt based from the WBS and
-              Start Date ({project.creationDate || "today"}).
-            </p>
-          </div>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <CardTitle>Gantt Chart</CardTitle>
+              <CardDescription className="mt-2">
+                Visual timeline of project activities
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={generateGantt}
+                variant="default"
+                disabled={isBusy}
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                {isBusy ? "Generating…" : "Generate Gantt"}
+              </Button>
 
-          <div className="flex gap-2">
-            <Button
-              onClick={onGenerate}
-              disabled={busy || taskCount === 0}
-              size="sm"
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              {busy ? "Generating…" : "Generate Gantt"}
-            </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onCopy}
+                disabled={!mermaidCode}
+                aria-label="Copy Mermaid code"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
 
-            <Button
-              className="hidden"
-              variant="outline"
-              onClick={onCopy}
-              disabled={!mermaidCode}
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              Copy Code
-            </Button>
-
-            <Button
-              className="hidden"
-              variant="outline"
-              onClick={() => setShowRaw((v) => !v)}
-              disabled={!mermaidCode}
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              {showRaw ? "Hide Code" : "View Code"}
-            </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowRaw((v) => !v)}
+                disabled={!mermaidCode}
+                aria-label={showRaw ? "Hide Mermaid code" : "View Mermaid code"}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2 py-2">
-          <div className="flex items-center justify-between gap-4"></div>
 
+        <CardContent className="space-y-4">
           {error && (
             <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-700">
               {error}
@@ -235,13 +220,13 @@ export default function GanttSection({
           )}
 
           {!mermaidCode && !error && (
-            <div className="text-muted-foreground rounded-md border p-4 text-sm">
+            <div className="text-muted-foreground rounded-md border p-4 text-xs italic">
               Mermaid Gantt chart will appear here after generation.
             </div>
           )}
 
           {mermaidCode && (
-            <div>
+            <div className="bg-muted rounded-lg p-4">
               {!showRaw ? (
                 <div
                   ref={mermaidContainer}

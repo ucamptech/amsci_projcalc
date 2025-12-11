@@ -1,361 +1,306 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 
-import type { Resource } from "@/api/types";
-import SectionTitle from "./SectionTitle";
-import type { WbsRow } from "@/data/types";
+import { DEFAULT_RESOURCES } from "@/lib/constants/project";
+import { Input } from "@/components/ui/input";
+import type { Resource } from "@/types/resource.type";
+import type { WBSItem } from "@/types/project.type";
 import { useMemo } from "react";
 
-type Props = {
-  wbsRows: WbsRow[];
-  resources: Resource[];
-};
-
-type LineItem = {
-  id: string;
-  activityId: number;
-  activityLabel: string;
-  wbsId: string;
-  resourceType: "Functional" | "Technical";
-  resourceId: number;
-  resourceName: string;
-  resourceTitle: string;
-  rate: number; // cost per manday
+//---------------------------------------------------------------------------
+// Types
+//---------------------------------------------------------------------------
+type CostRow = {
+  key: string;
+  type: "FX" | "ABAP" | "PM";
+  name: string;
+  title: string;
+  baseRate: number;
   mandays: number;
-  subtotal: number; // rate * mandays
+  isDefault?: boolean;
 };
 
-function toNumber(x: unknown): number {
-  if (typeof x === "number") return x;
-  if (typeof x === "string") return Number(x.replace(/,/g, ""));
-  return 0;
-}
+//---------------------------------------------------------------------------
+// Constants
+//---------------------------------------------------------------------------
+const DEFAULT_PM_RATE = 0;
+const DEFAULT_BADGE = (
+  <span className="rounded-full border border-cyan-300 bg-cyan-100 px-1.5 py-0.5 text-xs text-cyan-700">
+    Default
+  </span>
+);
 
-function toMoney(n: number, currency = "₱"): string {
-  // You can swap to Intl.NumberFormat if you prefer.
-  return `${currency}${n.toFixed(2)}`;
-}
+//---------------------------------------------------------------------------
+// Component
+//---------------------------------------------------------------------------
+export function CostSection({
+  wbsItems,
+  resources,
+  lockActivity = false,
+  rateOverrides = {},
+  mandayOverrides = {},
+  onRateChange,
+  onMandayChange,
+}: {
+  wbsItems: WBSItem[];
+  resources?: Resource[];
+  lockActivity?: boolean;
+  rateOverrides?: Record<string, number>;
+  mandayOverrides?: Record<string, number>;
+  onRateChange?: (key: string, value: number) => void;
+  onMandayChange?: (key: string, value: number) => void;
+}) {
+  //--------------------------------------------------------------------------
+  // Helpers
+  //--------------------------------------------------------------------------
+  const resourceList = resources?.length ? resources : DEFAULT_RESOURCES;
 
-export default function CostSection({ wbsRows, resources }: Props) {
-  // Build a lookup for resources
-  const resourcesById = useMemo(() => {
-    const map = new Map<number, Resource>();
-    for (const r of resources ?? []) {
-      if (typeof r.id === "number") map.set(r.id, r);
-    }
-    return map;
-  }, [resources]);
+  //--------------------------------------------------------------------------
+  // Functions
+  //--------------------------------------------------------------------------
 
-  // Build line-items from wbsRows
-  const lines = useMemo<LineItem[]>(() => {
-    const items: LineItem[] = [];
+  const handleRateChange = (key: string, value: number) => {
+    onRateChange?.(key, value);
+  };
 
-    for (const row of wbsRows) {
-      // FX side (Functional)
-      if (row.fxResourceId && toNumber(row.fxMandays) > 0) {
-        const rid = Number(row.fxResourceId);
-        const res = resourcesById.get(rid);
-        const typeName = res?.resourceType?.name?.toLowerCase() ?? "";
-        const isFunctional = typeName.includes("functional");
-        const rate = toNumber(res?.cost);
-        items.push({
-          id: `${row.id}-fx`,
-          activityId: Number(row.activityId),
-          activityLabel: row.activity ?? "",
-          wbsId: row.wbsId ?? "",
-          resourceType: isFunctional ? "Functional" : "Technical", // fallback if mislabeled
-          resourceId: rid,
-          resourceName: res?.name ?? `#${rid}`,
-          resourceTitle: res?.title ?? "",
-          rate,
-          mandays: toNumber(row.fxMandays),
-          subtotal: rate * toNumber(row.fxMandays),
-        });
-      }
+  const handleMandayChange = (key: string, value: number) => {
+    onMandayChange?.(key, value);
+  };
 
-      // ABAP side (Technical)
-      if (row.abapResourceId && toNumber(row.abapMandays) > 0) {
-        const rid = Number(row.abapResourceId);
-        const res = resourcesById.get(rid);
-        const typeName = res?.resourceType?.name?.toLowerCase() ?? "";
-        const isTechnical = typeName.includes("technical");
-        const rate = toNumber(res?.cost);
-        items.push({
-          id: `${row.id}-abap`,
-          activityId: Number(row.activityId),
-          activityLabel: row.activity ?? "",
-          wbsId: row.wbsId ?? "",
-          resourceType: isTechnical ? "Technical" : "Functional",
-          resourceId: rid,
-          resourceName: res?.name ?? `#${rid}`,
-          resourceTitle: res?.title ?? "",
-          rate,
-          mandays: toNumber(row.abapMandays),
-          subtotal: rate * toNumber(row.abapMandays),
-        });
-      }
-    }
+  const buildRows = (items: WBSItem[], resources: Resource[]): CostRow[] => {
+    const resourceMap = new Map<number, Resource>(
+      resources.map((resource) => [resource.id, resource]),
+    );
 
-    return items;
-  }, [wbsRows, resourcesById]);
-
-  // Summaries
-  const { grandTotal, byResource, byType, totalDays } = useMemo(() => {
-    let grandTotal = 0;
-    let totalDays = 0;
-
-    // By resource id
-    const byResource = new Map<
-      number,
+    const rows: CostRow[] = [
       {
-        resourceId: number;
-        name: string;
-        title: string;
-        rate: number;
-        mandays: number;
-        total: number;
-      }
-    >();
-
-    // By type
-    const byType = new Map<
-      "Functional" | "Technical",
-      { mandays: number; total: number }
-    >([
-      ["Functional", { mandays: 0, total: 0 }],
-      ["Technical", { mandays: 0, total: 0 }],
-    ]);
-
-    for (const li of lines) {
-      grandTotal += li.subtotal;
-      totalDays += li.mandays;
-
-      // Resource aggregation
-      const r = byResource.get(li.resourceId) ?? {
-        resourceId: li.resourceId,
-        name: li.resourceName,
-        title: li.resourceTitle,
-        rate: li.rate, // assume constant per resource
+        key: "projectManager",
+        type: "PM",
+        name: "Project Manager",
+        title: "Project Manager",
+        baseRate: DEFAULT_PM_RATE,
         mandays: 0,
-        total: 0,
-      };
-      r.mandays += li.mandays;
-      r.total += li.subtotal;
-      byResource.set(li.resourceId, r);
+        isDefault: true,
+      },
+    ];
 
-      // Type aggregation
-      const tt = byType.get(li.resourceType)!;
-      tt.mandays += li.mandays;
-      tt.total += li.subtotal;
-    }
+    items.forEach((item) => {
+      if (item.fxResourceId) {
+        const resource = resourceMap.get(item.fxResourceId);
+        const rate = Number(resource?.cost ?? 0);
+        const mandays = Number(item.fxMandays) || 0;
+        rows.push({
+          key: `fx-${item.fxResourceId}-${item.id}`,
+          type: "FX",
+          name: resource?.name ?? `Resource #${item.fxResourceId}`,
+          title: resource?.title ?? resource?.name ?? "-",
+          baseRate: rate,
+          mandays,
+          isDefault: false,
+        });
+      }
+      if (item.abapResourceId) {
+        const resource = resourceMap.get(item.abapResourceId);
+        const rate = Number(resource?.cost ?? 0);
+        const mandays = Number(item.abapMandays) || 0;
+        rows.push({
+          key: `abap-${item.abapResourceId}-${item.id}`,
+          type: "ABAP",
+          name: resource?.name ?? `Resource #${item.abapResourceId}`,
+          title: resource?.title ?? resource?.name ?? "-",
+          baseRate: rate,
+          mandays,
+          isDefault: false,
+        });
+      }
+    });
+    return rows;
+  };
 
-    return { grandTotal, byResource, byType, totalDays };
-  }, [lines]);
+  //--------------------------------------------------------------------------
+  // useMemos
+  //--------------------------------------------------------------------------
+  const rows = useMemo(
+    () => buildRows(wbsItems, resourceList),
+    [wbsItems, resourceList],
+  );
 
-  console.log(byType);
+  const computedRows = rows.map((row) => {
+    const rate =
+      rateOverrides[row.key] !== undefined
+        ? rateOverrides[row.key]
+        : row.baseRate;
+    const mandays =
+      mandayOverrides[row.key] !== undefined
+        ? mandayOverrides[row.key]
+        : row.mandays;
+    const subtotal = rate * mandays;
+    return { ...row, rate, mandays, subtotal };
+  });
+
+  const totalCost = computedRows.reduce(
+    (sum, row) => sum + (row.subtotal || 0),
+    0,
+  );
+  const totalMandays = computedRows.reduce(
+    (sum, row) => sum + (row.mandays || 0),
+    0,
+  );
+  const totalRate =
+    computedRows.length > 0
+      ? computedRows.reduce((sum, row) => sum + (row.rate ?? 0), 0)
+      : 0;
 
   return (
-    <section className="mt-6">
-      <SectionTitle title="III. Computation" />
-
-      {/* Detailed breakdown */}
-      <Card className="mt-2 gap-0">
-        {/* <CardHeader>
-          <CardTitle className="text-base">
-            Breakdown (Per Activity / Resource)
-          </CardTitle>
+    <section className="mt-0 gap-0">
+      <Card>
+        <CardHeader>
+          <CardTitle>Cost Breakdown</CardTitle>
+          <CardDescription>
+            Calculated costs based on resource rates and mandays
+          </CardDescription>
         </CardHeader>
-        <CardContent className="p-0 sm:p-2 md:p-4">
-          <div className="relative w-full overflow-x-auto rounded-lg border border-border">
-            <Table className="min-w-[820px] w-full text-sm align-middle">
-              <TableHeader className="sticky top-0 bg-background z-10 border-b">
-                <TableRow>
-                  <TableHead className="w-[10%]">WBS ID</TableHead>
-                  <TableHead className="w-[26%]">Activity</TableHead>
-                  <TableHead className="w-[14%]">Type</TableHead>
-                  <TableHead className="w-[24%]">Resource</TableHead>
-                  <TableHead className="w-[8%]" style={{ textAlign: "right" }}>
-                    Mandays
-                  </TableHead>
-                  <TableHead className="w-[9%]" style={{ textAlign: "right" }}>
-                    Rate
-                  </TableHead>
-                  <TableHead className="w-[9%]" style={{ textAlign: "right" }}>
-                    Subtotal
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lines.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="h-20 text-center text-muted-foreground"
-                    >
-                      No cost lines yet. Add resources and mandays in the WBS.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  lines.map((li) => (
-                    <TableRow key={li.id}>
-                      <TableCell>{li.wbsId || "—"}</TableCell>
-                      <TableCell title={li.activityLabel}>
-                        <span className="line-clamp-1">
-                          {li.activityLabel || "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell>{li.resourceType}</TableCell>
-                      <TableCell
-                        title={`${li.resourceName} — ${li.resourceTitle}`}
-                      >
-                        <span className="line-clamp-1">
-                          {li.resourceName} — {li.resourceTitle}
-                        </span>
-                      </TableCell>
-                      <TableCell style={{ textAlign: "right" }}>
-                        {li.mandays.toFixed(2)}
-                      </TableCell>
-                      <TableCell style={{ textAlign: "right" }}>
-                        {toMoney(li.rate)}
-                      </TableCell>
-                      <TableCell style={{ textAlign: "right" }}>
-                        {toMoney(li.subtotal)}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-              <TableFooter className="sticky bottom-0 bg-background z-10 border-t">
-                <TableRow>
-                  <TableCell colSpan={5}></TableCell>
-                  <TableCell className="text-right font-medium">
-                    Grand Total
-                  </TableCell>
-                  <TableCell className="text-right font-bold">
-                    {toMoney(grandTotal)}
-                  </TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
-          </div>
-        </CardContent> */}
-
-        {/* Breakdown by Resource */}
-        <CardHeader className="pb-0">
-          <CardTitle className="text-base">Breakdown by Resource</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 sm:p-2 md:p-4">
-          <div className="border-border relative w-full overflow-x-auto rounded-lg border">
-            <Table className="w-full min-w-[680px] align-middle text-sm">
-              <TableHeader className="bg-background sticky top-0 z-10 border-b">
+        <CardContent>
+          <div className="overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader>
                 <TableRow>
                   <TableHead>Resource</TableHead>
                   <TableHead>Title</TableHead>
-                  <TableHead style={{ textAlign: "right" }}>Rate</TableHead>
-                  <TableHead style={{ textAlign: "right" }}>Mandays</TableHead>
-                  <TableHead style={{ textAlign: "right" }}>Total</TableHead>
+                  <TableHead className="text-right">Rate</TableHead>
+                  <TableHead className="text-right">Mandays</TableHead>
+                  <TableHead className="text-right">Subtotal</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.from(byResource.values()).length === 0 ? (
+                {computedRows.length === 0 ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-muted-foreground h-16 text-center"
-                    >
+                    <TableCell colSpan={5} className="text-center text-sm">
                       No resources selected.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  Array.from(byResource.values()).map((r) => (
-                    <TableRow key={r.resourceId}>
-                      <TableCell>{r.name}</TableCell>
-                      <TableCell>{r.title || "—"}</TableCell>
-                      <TableCell style={{ textAlign: "right" }}>
-                        {toMoney(r.rate)}
+                  computedRows.map((row) => (
+                    <TableRow key={row.key}>
+                      <TableCell>{row.name || "-"}</TableCell>
+                      <TableCell className="align-middle">
+                        <div className="inline-flex items-center gap-2">
+                          <span>{row.title || "-"}</span>
+                          {row.isDefault && DEFAULT_BADGE}
+                        </div>
                       </TableCell>
-                      <TableCell style={{ textAlign: "right" }}>
-                        {r.mandays.toFixed(2)}
+
+                      {/* -- Rate -- */}
+                      <TableCell className="text-right">
+                        {row.type === "PM" ? (
+                          <div className="flex justify-end gap-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={Number.isNaN(row.rate) ? "" : row.rate}
+                              onChange={(e) =>
+                                handleRateChange(
+                                  row.key,
+                                  Number(e.target.value) || 0,
+                                )
+                              }
+                              className="w-24 text-right"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            ₱
+                            {row.rate.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </>
+                        )}
                       </TableCell>
-                      <TableCell style={{ textAlign: "right" }}>
-                        {toMoney(r.total)}
+
+                      {/* -- Mandays -- */}
+                      <TableCell className="text-right">
+                        {row.type === "PM" ? (
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={Number.isNaN(row.mandays) ? "" : row.mandays}
+                            onChange={(e) =>
+                              handleMandayChange(
+                                row.key,
+                                Number(e.target.value) || 0,
+                              )
+                            }
+                            disabled={lockActivity}
+                            className="w-24 text-right"
+                          />
+                        ) : (
+                          row.mandays.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ₱
+                        {row.subtotal.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </TableCell>
                     </TableRow>
                   ))
                 )}
-              </TableBody>
-              <TableFooter className="bg-background sticky bottom-0 z-10 border-t">
                 <TableRow>
-                  <TableCell colSpan={2}></TableCell>
-                  <TableCell className="text-right font-medium">
-                    Total
+                  <TableCell colSpan={2} className="text-left">
+                    <strong>TOTAL</strong>
                   </TableCell>
-                  <TableCell className="text-right font-bold">
-                    {totalDays.toFixed(2)}
+                  <TableCell className="text-right">
+                    <strong>
+                      ₱
+                      {totalRate.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </strong>
                   </TableCell>
-                  <TableCell className="text-right font-bold">
-                    {toMoney(grandTotal)}
+                  <TableCell className="text-right">
+                    <strong>
+                      {totalMandays.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </strong>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <strong>
+                      ₱
+                      {totalCost.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </strong>
                   </TableCell>
                 </TableRow>
-              </TableFooter>
+              </TableBody>
             </Table>
           </div>
         </CardContent>
-
-        {/* Summary by Type */}
-        {/* <CardHeader>
-          <CardTitle className="text-base">Summary by Type</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 sm:p-2 md:p-4">
-          <div className="relative w-full overflow-x-auto rounded-lg border border-border">
-            <Table className="min-w-[520px] w-full text-sm align-middle">
-              <TableHeader className="sticky top-0 bg-background z-10 border-b">
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead style={{ textAlign: "right" }}>Mandays</TableHead>
-                  <TableHead style={{ textAlign: "right" }}>Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(["Functional", "Technical"] as const).map((k) => {
-                  const row = byType.get(k)!;
-                  return (
-                    <TableRow key={k}>
-                      <TableCell>{k}</TableCell>
-                      <TableCell style={{ textAlign: "right" }}>
-                        {row.mandays.toFixed(2)}
-                      </TableCell>
-                      <TableCell style={{ textAlign: "right" }}>
-                        {toMoney(row.total)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-              <TableFooter className="sticky bottom-0 bg-background z-10 border-t">
-                <TableRow>
-                  <TableCell className="text-right font-medium">
-                    Grand Total
-                  </TableCell>
-                  <TableCell className="text-right font-bold">
-                    {totalDays}
-                  </TableCell>
-                  <TableCell className="text-right font-bold">
-                    {toMoney(grandTotal)}
-                  </TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
-          </div>
-        </CardContent> */}
       </Card>
     </section>
   );

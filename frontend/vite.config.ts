@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         "/ai": {
-          target: env.VITE_AI_PROXY,
+          target: env.VITE_AI_PROXY ?? "http://13.250.82.143:4321",
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/ai/, ""),
         },
