@@ -26,7 +26,7 @@ export function Navigation({
 }: NavigationProps) {
   // TODO Mock user
   const MOCK_USER = { name: "Percy Jackson", email: "test@example.com" };
-  const MOCK_UNREAD_COUNT = 1;
+  const MOCK_UNREAD_COUNT = 0;
 
   const location = useLocation();
   const navigate = useNavigate();

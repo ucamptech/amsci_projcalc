@@ -205,31 +205,21 @@ export function CostSection({
 
                       {/* -- Rate -- */}
                       <TableCell className="text-right">
-                        {row.type === "PM" ? (
-                          <div className="flex justify-end gap-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={Number.isNaN(row.rate) ? "" : row.rate}
-                              onChange={(e) =>
-                                handleRateChange(
-                                  row.key,
-                                  Number(e.target.value) || 0,
-                                )
-                              }
-                              className="w-24 text-right"
-                            />
-                          </div>
-                        ) : (
-                          <>
-                            ₱
-                            {row.rate.toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </>
-                        )}
+                        <div className="flex justify-end gap-1">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={Number.isNaN(row.rate) ? "" : row.rate}
+                            onChange={(e) =>
+                              handleRateChange(
+                                row.key,
+                                Number(e.target.value) || 0,
+                              )
+                            }
+                            className="w-24 text-right"
+                          />
+                        </div>
                       </TableCell>
 
                       {/* -- Mandays -- */}
