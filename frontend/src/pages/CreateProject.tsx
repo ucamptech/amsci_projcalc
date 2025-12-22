@@ -10,12 +10,9 @@ import { FinalCheckDialog } from "@/components/FinalCheckDialog";
 import { GanttSection } from "@/components/GanttSection";
 import { InitiationSection } from "@/components/InitiationSection";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  NONE_VALUE,
+  ProjectVersionsCard,
+} from "@/components/ProjectVersionsSection";
 import {
   StatusDialog,
   type StatusModal,
@@ -49,13 +46,6 @@ import {
 import type { ProjectPayload } from "@/types/project.type";
 import { validateProjectProposal } from "@/lib/api/ai.api";
 import { RESOURCE_TYPE } from "@/lib/constants/project";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 //---------------------------------------------------------------------------
 // Component
@@ -103,8 +93,6 @@ export function CreateProject() {
   const { id } = useParams();
   const hasId = Boolean(id); // If there's an id in the URL, show saved project.
 
-  console.log("Versions", versions);
-
   useLoadReferenceData({ withBusy, setActivities, setResources });
   useLoadProject({
     hasId,
@@ -147,8 +135,7 @@ export function CreateProject() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasId, project.projectUid]);
+  }, [hasId, project.id, project.projectUid, selectedVersionId]);
 
   // Load draft from local storage on first render (only when creating new)
   useEffect(() => {
@@ -526,54 +513,6 @@ export function CreateProject() {
     }
   };
 
-  const handleSaveAsNewVersion = async () => {
-    if (!validateProject()) return;
-    if (!project.projectUid) {
-      toast.error("Cannot create a new version without a project UID.");
-      return;
-    }
-
-    showBusy();
-    setSubmitBusy(true);
-    try {
-      const payload = buildProjectPayload();
-      payload.projectUid = project.projectUid;
-      payload.isCurrent = false;
-
-      const response = await withBusy(
-        () => createProject(payload),
-        "Saving new version...",
-      );
-
-      if (response?.id) {
-        setProject((p) => ({
-          ...p,
-          id: response.id ?? p.id,
-          projectUid: response.projectUid ?? p.projectUid,
-          isCurrent: response.isCurrent ?? p.isCurrent,
-        }));
-        setSelectedVersionId(response.id ?? null);
-      }
-
-      if (project.projectUid) {
-        const res = await getProjectVersions(project.projectUid);
-        setVersions(res ?? []);
-      }
-
-      setStatusModal({
-        type: "success",
-        message: "Saved as a new version.",
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to save new version";
-      toast.error(message);
-    } finally {
-      setSubmitBusy(false);
-      hideBusy();
-    }
-  };
-
   const handleExportPDF = async () => {
     toast.success("Exporting to PDF...");
     const computedRows = buildComputedCostRows();
@@ -770,93 +709,34 @@ export function CreateProject() {
   return (
     <div className="space-y-6">
       {hasId && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Project Versions</CardTitle>
-            <CardDescription>
-              Load or promote a specific version of this project.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-              <Select
-                value={
-                  newVersionMode
-                    ? "__new"
-                    : selectedVersionId
-                      ? String(selectedVersionId)
-                      : ""
-                }
-                onValueChange={(val) => {
-                  if (val === "__new") {
-                    setNewVersionMode(true);
-                    setSelectedVersionId(null);
-                    setProject((prev) => ({
-                      ...prev,
-                      version: prev.version || "",
-                      isCurrent: false,
-                    }));
-                    return;
-                  }
-                  const idNum = Number(val);
-                  if (Number.isFinite(idNum)) {
-                    void handleLoadVersion(idNum);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-64">
-                  <SelectValue placeholder="Select version" />
-                </SelectTrigger>
-                <SelectContent>
-                  {versions.map((v) => (
-                    <SelectItem key={v.id} value={String(v.id ?? "")}>
-                      <span className="flex items-center gap-2">
-                        <span>{v.version || "Unversioned"}</span>
-                        {v.isCurrent && (
-                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                            latest
-                          </span>
-                        )}
-                      </span>
-                    </SelectItem>
-                  ))}
-                  <div className="bg-muted my-1 h-px" />
-                  <SelectItem value="__new" className="text-blue-600">
-                    + New version
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="text-muted-foreground text-xs">
-                {newVersionMode
-                  ? "Creating new version"
-                  : `Selected version: ${project.version || "N/A"}`}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (selectedVersionId) {
-                    void handleLoadVersion(selectedVersionId);
-                  }
-                }}
-              >
-                Reload selected
-              </Button>
-              <Button
-                variant="default"
-                onClick={() => void handlePromoteVersion()}
-                disabled={
-                  !project.id ||
-                  newVersionMode ||
-                  versions.find((v) => v.id === selectedVersionId)?.isCurrent
-                }
-              >
-                Promote as latest
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <ProjectVersionsCard
+          versions={versions}
+          selectedVersionId={selectedVersionId}
+          newVersionMode={newVersionMode}
+          hasId={hasId}
+          onSelectVersion={(val) => {
+            if (val === NONE_VALUE) {
+              setNewVersionMode(true);
+              setSelectedVersionId(null);
+              setProject((prev) => ({
+                ...prev,
+                version: prev.version || "",
+                isCurrent: false,
+              }));
+              return;
+            }
+            const idNum = Number(val);
+            if (Number.isFinite(idNum)) {
+              void handleLoadVersion(idNum);
+            }
+          }}
+          onReload={() => {
+            if (selectedVersionId) {
+              void handleLoadVersion(selectedVersionId);
+            }
+          }}
+          onPromote={() => void handlePromoteVersion()}
+        />
       )}
 
       {/* Project Information Section */}
@@ -960,17 +840,6 @@ export function CreateProject() {
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             Export as Excel
           </Button>
-
-          {hasId && (
-            <Button
-              variant="secondary"
-              onClick={() => void handleSaveAsNewVersion()}
-              disabled={submitBusy}
-              className="w-full sm:w-auto"
-            >
-              Save as new version
-            </Button>
-          )}
 
           <Button
             disabled={submitBusy || editLocked || finalCheckBusy}

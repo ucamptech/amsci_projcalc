@@ -36,7 +36,7 @@ export function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortColumn, setSortColumn] = useState<keyof Project | null>(null);
+  const [sortColumn, setSortColumn] = useState<keyof Project | null>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);

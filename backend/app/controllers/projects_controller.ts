@@ -1,7 +1,7 @@
-import type { HttpContext } from '@adonisjs/core/http'
-import db from '@adonisjs/lucid/services/db'
-import Project from '#models/project'
 import Estimate from '#models/estimate'
+import type { HttpContext } from '@adonisjs/core/http'
+import Project from '#models/project'
+import db from '@adonisjs/lucid/services/db'
 import { randomUUID } from 'node:crypto'
 
 export default class ProjectsController {
@@ -9,34 +9,45 @@ export default class ProjectsController {
     // TODO : Validate
     const projectPayload = request.except(['estimates'])
     const estimatesPayload = request.only(['estimates'])
+    const estimates = estimatesPayload.estimates ?? []
 
     const trx = await db.transaction()
-    const project = await Project.create(
-      {
-        ...projectPayload,
-        projectUid: projectPayload.projectUid || randomUUID(),
-        isCurrent: projectPayload.isCurrent ?? true,
-      },
-      { client: trx }
-    )
-    // If marking current, unset other versions for the same projectUid
-    if (project.isCurrent && project.projectUid) {
-      await Project.query({ client: trx })
-        .where('project_uid', project.projectUid)
-        .whereNot('id', project.id)
-        .update({ isCurrent: false })
-    }
-    await project.save()
-    await project.related('estimates').createMany(estimatesPayload.estimates)
-    await trx.commit()
+    try {
+      const project = await Project.create(
+        {
+          ...projectPayload,
+          projectUid: projectPayload.projectUid || randomUUID(),
+          isCurrent: projectPayload.isCurrent ?? true,
+        },
+        { client: trx }
+      )
+      project.useTransaction(trx)
 
-    return project
+      // If marking current, unset other versions for the same projectUid
+      if (project.isCurrent && project.projectUid) {
+        await Project.query({ client: trx })
+          .where('project_uid', project.projectUid)
+          .whereNot('id', project.id)
+          .update({ isCurrent: false })
+      }
+
+      if (estimates.length > 0) {
+        await project.related('estimates').createMany(estimates)
+      }
+
+      await trx.commit()
+      return project
+    } catch (error) {
+      await trx.rollback()
+      throw error
+    }
   }
 
   async update({ request, params }: HttpContext) {
     // TODO : Validate
     const projectPayload = request.except(['estimates'])
     const estimatesPayload = request.only(['estimates'])
+    const estimates = estimatesPayload.estimates
 
     const trx = await db.transaction()
     try {
@@ -59,21 +70,23 @@ export default class ProjectsController {
       }
 
       // Update or delete existing estimates
-      for (const estimate of project.estimates) {
-        const estimateUpdate = estimatesPayload.estimates.find((e: Estimate) => e.id === estimate.id)
-        if (estimateUpdate) {
-          estimate.useTransaction(trx)
-          await estimate.merge(estimateUpdate).save()
-        } else {
-          estimate.useTransaction(trx)
-          await estimate.delete()
+      if (Array.isArray(estimates)) {
+        for (const estimate of project.estimates) {
+          const estimateUpdate = estimates.find((e: Estimate) => e.id === estimate.id)
+          if (estimateUpdate) {
+            estimate.useTransaction(trx)
+            await estimate.merge(estimateUpdate).save()
+          } else {
+            estimate.useTransaction(trx)
+            await estimate.delete()
+          }
         }
-      }
 
-      // Create new estimates
-      const newEstimates = estimatesPayload.estimates.filter((e: Estimate) => !e.id)
-      if (newEstimates.length > 0) {
-        await project.related('estimates').createMany(newEstimates)
+        // Create new estimates
+        const newEstimates = estimates.filter((e: Estimate) => !e.id)
+        if (newEstimates.length > 0) {
+          await project.related('estimates').createMany(newEstimates)
+        }
       }
 
       await trx.commit()
@@ -130,9 +143,7 @@ export default class ProjectsController {
       project.projectUid = randomUUID()
     }
 
-    await Project.query()
-      .where('project_uid', project.projectUid)
-      .update({ isCurrent: false })
+    await Project.query().where('project_uid', project.projectUid).update({ isCurrent: false })
 
     project.isCurrent = true
     await project.save()
