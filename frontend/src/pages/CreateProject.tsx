@@ -1,5 +1,5 @@
 import { FileSpreadsheet, FileText, RotateCcw, Save } from "lucide-react";
-import type { ProjectInit, WBSItem } from "@/types/project.type";
+import type { ProjectDetail, ProjectInit, WBSItem } from "@/types/project.type";
 import { useEffect, useState } from "react";
 
 import type { Activity } from "@/types/activity.type";
@@ -9,6 +9,13 @@ import { CostSection } from "@/components/CostSection";
 import { FinalCheckDialog } from "@/components/FinalCheckDialog";
 import { GanttSection } from "@/components/GanttSection";
 import { InitiationSection } from "@/components/InitiationSection";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   StatusDialog,
   type StatusModal,
@@ -32,9 +39,23 @@ import {
 import { exportProjectToPdf } from "@/lib/utils/pdfExport";
 import { exportProjectToExcel } from "@/lib/utils/xlsxExport";
 import useLocalStorage from "@/hooks/useLocalStorage";
-import { createProject, updateProject } from "@/lib/api/projects.api";
+import {
+  createProject,
+  getProjectById,
+  getProjectVersions,
+  promoteProjectVersion,
+  updateProject,
+} from "@/lib/api/projects.api";
 import type { ProjectPayload } from "@/types/project.type";
 import { validateProjectProposal } from "@/lib/api/ai.api";
+import { RESOURCE_TYPE } from "@/lib/constants/project";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 //---------------------------------------------------------------------------
 // Component
@@ -68,6 +89,11 @@ export function CreateProject() {
   const [statusModal, setStatusModal] = useState<StatusModal>(null);
   const [submitBusy, setSubmitBusy] = useState<boolean>(false);
   const [ganttMermaid, setGanttMermaid] = useState<string>("");
+  const [versions, setVersions] = useState<ProjectDetail[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<number | null>(
+    null,
+  );
+  const [newVersionMode, setNewVersionMode] = useState(false);
 
   //--------------------------------------------------------------------------
   // Helpers
@@ -76,6 +102,8 @@ export function CreateProject() {
   const navigate = useNavigate();
   const { id } = useParams();
   const hasId = Boolean(id); // If there's an id in the URL, show saved project.
+
+  console.log("Versions", versions);
 
   useLoadReferenceData({ withBusy, setActivities, setResources });
   useLoadProject({
@@ -90,6 +118,37 @@ export function CreateProject() {
       navigate("/projects");
     },
   });
+
+  useEffect(() => {
+    if (hasId && project.id) {
+      setSelectedVersionId(project.id);
+    }
+  }, [hasId, project.id]);
+
+  // Load version list when a project UID is present
+  useEffect(() => {
+    if (!hasId || !project.projectUid) return;
+    let cancelled = false;
+    const loadVersions = async () => {
+      try {
+        const res = await getProjectVersions(project.projectUid!);
+        if (cancelled) return;
+        setVersions(res ?? []);
+        if (!selectedVersionId && res?.length) {
+          setSelectedVersionId(project.id ?? res[0].id ?? null);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to load versions";
+        toast.error(message);
+      }
+    };
+    void loadVersions();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasId, project.projectUid]);
 
   // Load draft from local storage on first render (only when creating new)
   useEffect(() => {
@@ -127,6 +186,107 @@ export function CreateProject() {
   //--------------------------------------------------------------------------
   // Functions
   //--------------------------------------------------------------------------
+
+  const hydrateFromProjectDetail = (proj: ProjectDetail) => {
+    setProject({
+      id: proj.id,
+      name: proj.name ?? "",
+      sponsor: proj.sponsor ?? "",
+      manager: proj.manager ?? "",
+      version: proj.version ?? "",
+      startDate: proj.startDate ?? "",
+      businessNeed: proj.businessNeed ?? "",
+      projectGoal: proj.projectGoal ?? "",
+      measurableObjectives: proj.measurableObjectives ?? "",
+      deliverables: proj.deliverables ?? "",
+      outOfScope: proj.outOfScope ?? "",
+      pmRate:
+        proj.pmRate !== undefined && proj.pmRate !== null
+          ? Number(proj.pmRate)
+          : null,
+      pmMandays:
+        proj.pmMandays !== undefined && proj.pmMandays !== null
+          ? Number(proj.pmMandays)
+          : null,
+      projectUid: proj.projectUid ?? null,
+      isCurrent: proj.isCurrent ?? false,
+      createdAt: proj.createdAt ?? "",
+      updatedAt: proj.updatedAt ?? "",
+    });
+
+    setWbsItems(() => {
+      if (!proj.estimates?.length) return WBSITEMS_INIT;
+
+      const grouped = new Map<number, WBSItem>();
+
+      proj.estimates.forEach((estimate, idx) => {
+        const activityId = estimate.activityId ?? estimate.activity?.id;
+        if (!activityId) return;
+
+        const existing =
+          grouped.get(activityId) ??
+          ({
+            id: estimate.id ?? idx + 1,
+            wbsId: estimate.activity?.wbsId ?? `${activityId}.0`,
+            activityId,
+            fxResourceId: null,
+            fxStartDate: "",
+            fxMandays: 0,
+            abapResourceId: null,
+            abapStartDate: "",
+            abapMandays: 0,
+          } satisfies WBSItem);
+
+        const resourceType = estimate.resource?.resourceType?.name;
+        const startDate = estimate.startDate ? String(estimate.startDate) : "";
+
+        if (resourceType === RESOURCE_TYPE.Functional) {
+          existing.fxResourceId = estimate.resourceId ?? existing.fxResourceId;
+          existing.fxMandays = estimate.mandays ?? existing.fxMandays;
+          existing.fxStartDate = startDate;
+        } else if (resourceType === RESOURCE_TYPE.Technical) {
+          existing.abapResourceId =
+            estimate.resourceId ?? existing.abapResourceId;
+          existing.abapMandays = estimate.mandays ?? existing.abapMandays;
+          existing.abapStartDate = startDate;
+        }
+
+        if (!existing.id) {
+          existing.id = estimate.id ?? idx + 1;
+        }
+
+        grouped.set(activityId, existing);
+      });
+
+      return grouped.size > 0 ? Array.from(grouped.values()) : WBSITEMS_INIT;
+    });
+
+    const rateMap: Record<string, number> = {};
+    if (proj.pmRate !== undefined && proj.pmRate !== null) {
+      rateMap.projectManager = Number(proj.pmRate);
+    }
+    proj.estimates?.forEach((estimate) => {
+      const resourceType = estimate.resource?.resourceType?.name;
+      const rateVal =
+        estimate.rate !== undefined && estimate.rate !== null
+          ? Number(estimate.rate)
+          : undefined;
+      if (!rateVal || !estimate.resourceId) return;
+      if (resourceType === RESOURCE_TYPE.Functional) {
+        rateMap[`fx-${estimate.resourceId}`] = rateVal;
+      } else if (resourceType === RESOURCE_TYPE.Technical) {
+        rateMap[`abap-${estimate.resourceId}`] = rateVal;
+      }
+    });
+    setRateOverrides((prev) => ({ ...prev, ...rateMap }));
+
+    if (proj.pmMandays !== undefined && proj.pmMandays !== null) {
+      setMandayOverrides((prev) => ({
+        ...prev,
+        projectManager: Number(proj.pmMandays),
+      }));
+    }
+  };
 
   const buildComputedCostRows = () => {
     const resourceList = resources?.length ? resources : DEFAULT_RESOURCES;
@@ -259,6 +419,8 @@ export function CreateProject() {
         mandayOverrides.projectManager !== undefined
           ? mandayOverrides.projectManager
           : null,
+      projectUid: project.projectUid,
+      isCurrent: project.isCurrent,
       version: project.version || undefined,
       startDate: project.startDate || undefined,
       businessNeed: project.businessNeed || undefined,
@@ -329,6 +491,87 @@ export function CreateProject() {
     setRateOverrides({ projectManager: 0 });
     setMandayOverrides({ projectManager: 0 });
     setStatusModal({ type: "success", message: "Draft cleared" });
+  };
+
+  const handleLoadVersion = async (versionId: number) => {
+    try {
+      const res = await getProjectById(versionId);
+      hydrateFromProjectDetail(res);
+      setSelectedVersionId(versionId);
+      setNewVersionMode(false);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to load version";
+      toast.error(message);
+    }
+  };
+
+  const handlePromoteVersion = async () => {
+    const targetId = selectedVersionId ?? project.id;
+    if (!targetId) return;
+    try {
+      await promoteProjectVersion(targetId);
+      toast.success("Version promoted as latest");
+      if (project.projectUid) {
+        const res = await getProjectVersions(project.projectUid);
+        setVersions(res ?? []);
+      }
+      if (targetId === project.id) {
+        setProject((p) => ({ ...p, isCurrent: true }));
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to promote version";
+      toast.error(message);
+    }
+  };
+
+  const handleSaveAsNewVersion = async () => {
+    if (!validateProject()) return;
+    if (!project.projectUid) {
+      toast.error("Cannot create a new version without a project UID.");
+      return;
+    }
+
+    showBusy();
+    setSubmitBusy(true);
+    try {
+      const payload = buildProjectPayload();
+      payload.projectUid = project.projectUid;
+      payload.isCurrent = false;
+
+      const response = await withBusy(
+        () => createProject(payload),
+        "Saving new version...",
+      );
+
+      if (response?.id) {
+        setProject((p) => ({
+          ...p,
+          id: response.id ?? p.id,
+          projectUid: response.projectUid ?? p.projectUid,
+          isCurrent: response.isCurrent ?? p.isCurrent,
+        }));
+        setSelectedVersionId(response.id ?? null);
+      }
+
+      if (project.projectUid) {
+        const res = await getProjectVersions(project.projectUid);
+        setVersions(res ?? []);
+      }
+
+      setStatusModal({
+        type: "success",
+        message: "Saved as a new version.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save new version";
+      toast.error(message);
+    } finally {
+      setSubmitBusy(false);
+      hideBusy();
+    }
   };
 
   const handleExportPDF = async () => {
@@ -428,20 +671,40 @@ export function CreateProject() {
     setSubmitBusy(true);
     try {
       const payload = buildProjectPayload();
+      const isCreatingNewVersion = newVersionMode && project.projectUid;
 
       const response = await withBusy(
         () =>
-          hasId && project.id
-            ? updateProject(project.id, payload)
-            : createProject(payload),
+          isCreatingNewVersion
+            ? createProject({
+                ...payload,
+                projectUid: project.projectUid ?? undefined,
+                isCurrent: false,
+              })
+            : hasId && project.id
+              ? updateProject(project.id, payload)
+              : createProject(payload),
         hasId ? "Saving project..." : "Creating project...",
       );
 
-      if (response?.id && !project.id) {
-        setProject((p) => ({ ...p, id: response.id }));
+      if (response?.id) {
+        setProject((p) => ({
+          ...p,
+          id: response.id ?? p.id,
+          projectUid: response.projectUid ?? p.projectUid,
+          isCurrent: response.isCurrent ?? p.isCurrent,
+        }));
       }
 
       const newId = response?.id ?? project.id;
+      if (project.projectUid) {
+        const res = await getProjectVersions(project.projectUid);
+        setVersions(res ?? []);
+      }
+      if (isCreatingNewVersion && response?.id) {
+        setSelectedVersionId(response.id);
+        setNewVersionMode(false);
+      }
       const message = "Project submitted successfully";
       if (hasId) {
         setStatusModal({
@@ -506,6 +769,96 @@ export function CreateProject() {
   //--------------------------------------------------------------------------
   return (
     <div className="space-y-6">
+      {hasId && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Project Versions</CardTitle>
+            <CardDescription>
+              Load or promote a specific version of this project.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <Select
+                value={
+                  newVersionMode
+                    ? "__new"
+                    : selectedVersionId
+                      ? String(selectedVersionId)
+                      : ""
+                }
+                onValueChange={(val) => {
+                  if (val === "__new") {
+                    setNewVersionMode(true);
+                    setSelectedVersionId(null);
+                    setProject((prev) => ({
+                      ...prev,
+                      version: prev.version || "",
+                      isCurrent: false,
+                    }));
+                    return;
+                  }
+                  const idNum = Number(val);
+                  if (Number.isFinite(idNum)) {
+                    void handleLoadVersion(idNum);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Select version" />
+                </SelectTrigger>
+                <SelectContent>
+                  {versions.map((v) => (
+                    <SelectItem key={v.id} value={String(v.id ?? "")}>
+                      <span className="flex items-center gap-2">
+                        <span>{v.version || "Unversioned"}</span>
+                        {v.isCurrent && (
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                            latest
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <div className="bg-muted my-1 h-px" />
+                  <SelectItem value="__new" className="text-blue-600">
+                    + New version
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="text-muted-foreground text-xs">
+                {newVersionMode
+                  ? "Creating new version"
+                  : `Selected version: ${project.version || "N/A"}`}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (selectedVersionId) {
+                    void handleLoadVersion(selectedVersionId);
+                  }
+                }}
+              >
+                Reload selected
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => void handlePromoteVersion()}
+                disabled={
+                  !project.id ||
+                  newVersionMode ||
+                  versions.find((v) => v.id === selectedVersionId)?.isCurrent
+                }
+              >
+                Promote as latest
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Project Information Section */}
       <InitiationSection
         project={project}
@@ -607,6 +960,17 @@ export function CreateProject() {
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             Export as Excel
           </Button>
+
+          {hasId && (
+            <Button
+              variant="secondary"
+              onClick={() => void handleSaveAsNewVersion()}
+              disabled={submitBusy}
+              className="w-full sm:w-auto"
+            >
+              Save as new version
+            </Button>
+          )}
 
           <Button
             disabled={submitBusy || editLocked || finalCheckBusy}

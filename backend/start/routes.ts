@@ -29,8 +29,10 @@ router
       .group(() => {
         router.post('/', [ProjectsController, 'store'])
         router.get('/', [ProjectsController, 'list'])
+        router.get('/group/:uid/versions', [ProjectsController, 'versions'])
         router.get('/:id', [ProjectsController, 'get'])
         router.put('/:id', [ProjectsController, 'update'])
+        router.patch('/:id/promote', [ProjectsController, 'promote'])
       })
       .use(
         middleware.auth({

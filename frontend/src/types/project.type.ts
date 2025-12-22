@@ -15,6 +15,8 @@ export interface ProjectInit {
   outOfScope?: string;
   pmRate?: number | null;
   pmMandays?: number | null;
+  projectUid?: string | null;
+  isCurrent?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -70,11 +72,15 @@ export interface ProjectPayload {
   outOfScope?: string;
   pmRate?: number | null;
   pmMandays?: number | null;
+  projectUid?: string | null;
+  isCurrent?: boolean;
   estimates: EstimatePayload[];
 }
 
 export interface Project extends Omit<ProjectPayload, "estimates"> {
   id: number;
+  projectUid?: string | null;
+  isCurrent?: boolean;
   createdAt?: string;
   updatedAt?: string;
   estimates: Estimate[];
@@ -94,6 +100,8 @@ export interface ProjectDetail {
   measurableObjectives?: string;
   deliverables?: string;
   outOfScope?: string;
+  projectUid?: string | null;
+  isCurrent?: boolean;
   createdAt?: string;
   updatedAt?: string;
   estimates?: Estimate[];

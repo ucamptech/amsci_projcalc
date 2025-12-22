@@ -111,6 +111,8 @@ export function useLoadProject({
             proj.pmMandays !== undefined && proj.pmMandays !== null
               ? Number(proj.pmMandays)
               : null,
+          projectUid: proj.projectUid ?? null,
+          isCurrent: proj.isCurrent ?? false,
           createdAt: proj.createdAt ?? "",
           updatedAt: proj.updatedAt ?? "",
         });

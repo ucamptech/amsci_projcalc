@@ -44,6 +44,12 @@ export default class Project extends BaseModel {
   @column()
   declare pmMandays: number | null
 
+  @column()
+  declare projectUid: string | null
+
+  @column()
+  declare isCurrent: boolean
+
   @hasMany(() => Estimate)
   declare estimates: HasMany<typeof Estimate>
 

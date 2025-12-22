@@ -6,6 +6,7 @@ import type {
 import { apiClient, extractApiErrorMessage } from "./axios";
 
 import type { PaginatedResponse } from "@/types/api.type";
+import type { AxiosResponse } from "axios";
 
 export async function createProject(payload: ProjectPayload) {
   try {
@@ -51,5 +52,29 @@ export async function getProjectById(projectId: number) {
     return data;
   } catch (error) {
     throw new Error(extractApiErrorMessage(error, "Failed to load project"));
+  }
+}
+
+export async function getProjectVersions(projectUid: string) {
+  try {
+    const { data } = await apiClient.get<ProjectDetail[]>(
+      `/projects/group/${projectUid}/versions`,
+    );
+    return data;
+  } catch (error) {
+    throw new Error(
+      extractApiErrorMessage(error, "Failed to load project versions"),
+    );
+  }
+}
+
+export async function promoteProjectVersion(projectId: number) {
+  try {
+    const res: AxiosResponse<ProjectDetail> = await apiClient.patch(
+      `/projects/${projectId}/promote`,
+    );
+    return res.data;
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error, "Failed to promote version"));
   }
 }
